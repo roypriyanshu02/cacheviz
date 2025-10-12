@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RISC Cache-Flow</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Left Panel: Control & Info -->
+        <div class="panel left-panel">
+            <h1 class="title">RISC Cache-Flow</h1>
+            
+            <div class="stats-section">
+                <h2>Statistics</h2>
+                <div class="stat-item">
+                    <span class="stat-label">Cache Hits:</span>
+                    <span class="stat-value hit-count">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Cache Misses:</span>
+                    <span class="stat-value miss-count">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Hit Rate:</span>
+                    <span class="stat-value hit-rate">0%</span>
+                </div>
+            </div>
+            
+            <div class="input-section">
+                <h2>Execute Command</h2>
+                <textarea 
+                    id="command-input" 
+                    placeholder="e.g., LOAD R1, 0x1A4
+LOAD R2, 0x1A4"
+                    class="command-input"
+                    rows="5"
+                ></textarea>
+                <button id="execute-btn" class="execute-btn">Execute</button>
+            </div>
+            
+            <div class="examples-section">
+                <h2>Examples</h2>
+                <ul class="examples-list">
+                    <li class="example-item" data-command="LOAD R1, 0x1A4">The First Miss</li>
+                    <li class="example-item" data-command="LOAD R1, 0x1A4&#10;LOAD R3, 0x2B0&#10;STORE R2, 0x1A4">Miss, then Hit</li>
+                    <li class="example-item" data-command="LOAD R1, 0x1A4&#10;STORE R2, 0x2B0&#10;LOAD R3, 0x3C8&#10;STORE R4, 0x4D0&#10;LOAD R5, 0x1A4">Forcing a Replacement</li>
+                </ul>
+            </div>
+            
+            <div class="reset-section">
+                <button id="reset-btn" class="reset-btn">Reset Simulation</button>
+            </div>
+        </div>
+        
+        <!-- Center Panel: Visualization -->
+        <div class="panel center-panel">
+            <svg id="visualization" viewBox="0 0 1100 680" preserveAspectRatio="xMidYMid meet">
+                <defs>
+                    <filter id="pulse-glow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="6" result="coloredBlur" />
+                        <feMerge>
+                            <feMergeNode in="coloredBlur" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                </defs>
+
+                <g id="diagram-content" transform="translate(-74, -50) scale(1.12)">
+
+                <!-- CPU -->
+                <g id="cpu" transform="translate(80, 275)">
+                    <rect x="0" y="0" width="180" height="160" rx="20" class="cpu-body" />
+                    <g class="cpu-pins">
+                        <rect x="-14" y="18" width="10" height="16" rx="2" ry="2" class="cpu-pin" />
+                        <rect x="-14" y="46" width="10" height="16" rx="2" ry="2" class="cpu-pin" />
+                        <rect x="-14" y="74" width="10" height="16" rx="2" ry="2" class="cpu-pin" />
+                        <rect x="-14" y="102" width="10" height="16" rx="2" ry="2" class="cpu-pin" />
+                        <rect x="-14" y="130" width="10" height="16" rx="2" ry="2" class="cpu-pin" />
+                        <rect x="184" y="18" width="10" height="16" rx="2" ry="2" class="cpu-pin" />
+                        <rect x="184" y="46" width="10" height="16" rx="2" ry="2" class="cpu-pin" />
+                        <rect x="184" y="74" width="10" height="16" rx="2" ry="2" class="cpu-pin" />
+                        <rect x="184" y="102" width="10" height="16" rx="2" ry="2" class="cpu-pin" />
+                        <rect x="184" y="130" width="10" height="16" rx="2" ry="2" class="cpu-pin" />
+                    </g>
+                    <rect id="cpu-core" x="40" y="40" width="100" height="80" rx="16" class="cpu-core" />
+                    <g id="cpu-core-lines" class="cpu-core-lines">
+                        <line x1="50" y1="60" x2="130" y2="60" />
+                        <line x1="50" y1="80" x2="130" y2="80" />
+                        <line x1="50" y1="100" x2="130" y2="100" />
+                    </g>
+                    <text x="90" y="145" class="component-label" fill="white">CPU</text>
+                </g>
+
+                <!-- Cache -->
+                <g id="cache" transform="translate(395, 85)">
+                    <rect x="0" y="0" width="278" height="532" rx="20" class="cache-body" />
+                    <text x="139" y="36" class="component-label" fill="white">Cache</text>
+
+                    <!-- Cache Lines -->
+                    <g id="cache-lines" transform="translate(24, 62)">
+                        <!-- Lines generated dynamically -->
+                    </g>
+                </g>
+
+                <!-- Main Memory (RAM Stick) -->
+                <g id="memory" transform="translate(760, 85)">
+                    <!-- RAM Stick Container -->
+                    <g id="memory-module" transform="translate(0, 0)">
+                        <!-- Main PCB Body -->
+                        <rect x="0" y="0" width="290" height="530" rx="12" class="memory-body" />
+                        <text x="145" y="36" class="component-label" fill="white">Main Memory</text>
+                        
+                        <!-- Bottom Notch (RAM characteristic) -->
+                        <rect x="125" y="522" width="40" height="8" class="memory-notch" />
+                        
+                        <!-- Circuit Traces (decorative) -->
+                        <g class="circuit-traces">
+                            <line x1="15" y1="25" x2="275" y2="25" class="circuit-trace" />
+                            <line x1="15" y1="155" x2="275" y2="155" class="circuit-trace" />
+                            <line x1="15" y1="285" x2="275" y2="285" class="circuit-trace" />
+                            <line x1="15" y1="415" x2="275" y2="415" class="circuit-trace" />
+                            <line x1="15" y1="505" x2="275" y2="505" class="circuit-trace" />
+                        </g>
+                        
+                        <!-- Gold Contacts (bottom edge pins) -->
+                        <g class="memory-contacts">
+                            <rect x="20" y="520" width="8" height="10" class="memory-contact" />
+                            <rect x="35" y="520" width="8" height="10" class="memory-contact" />
+                            <rect x="50" y="520" width="8" height="10" class="memory-contact" />
+                            <rect x="65" y="520" width="8" height="10" class="memory-contact" />
+                            <rect x="80" y="520" width="8" height="10" class="memory-contact" />
+                            <rect x="95" y="520" width="8" height="10" class="memory-contact" />
+                            <rect x="110" y="520" width="8" height="10" class="memory-contact" />
+                            <!-- Notch gap -->
+                            <rect x="170" y="520" width="8" height="10" class="memory-contact" />
+                            <rect x="185" y="520" width="8" height="10" class="memory-contact" />
+                            <rect x="200" y="520" width="8" height="10" class="memory-contact" />
+                            <rect x="215" y="520" width="8" height="10" class="memory-contact" />
+                            <rect x="230" y="520" width="8" height="10" class="memory-contact" />
+                            <rect x="245" y="520" width="8" height="10" class="memory-contact" />
+                            <rect x="260" y="520" width="8" height="10" class="memory-contact" />
+                        </g>
+                        
+                        <!-- Memory Chips (Banks) -->
+                        <g id="memory-banks" transform="translate(15, 52)">
+                            <g class="memory-bank-group" data-index="0" transform="translate(0, 0)">
+                                <rect width="260" height="95" rx="8" class="memory-chip" />
+                                <g class="memory-cells" transform="translate(15, 15)">
+                                    <rect width="50" height="65" rx="4" class="memory-cell" data-cell="0" x="0" />
+                                    <rect width="50" height="65" rx="4" class="memory-cell" data-cell="1" x="60" />
+                                    <rect width="50" height="65" rx="4" class="memory-cell" data-cell="2" x="120" />
+                                    <rect width="50" height="65" rx="4" class="memory-cell" data-cell="3" x="180" />
+                                </g>
+                            </g>
+                            <g class="memory-bank-group" data-index="1" transform="translate(0, 110)">
+                                <rect width="260" height="95" rx="8" class="memory-chip" />
+                                <g class="memory-cells" transform="translate(15, 15)">
+                                    <rect width="50" height="65" rx="4" class="memory-cell" data-cell="0" x="0" />
+                                    <rect width="50" height="65" rx="4" class="memory-cell" data-cell="1" x="60" />
+                                    <rect width="50" height="65" rx="4" class="memory-cell" data-cell="2" x="120" />
+                                    <rect width="50" height="65" rx="4" class="memory-cell" data-cell="3" x="180" />
+                                </g>
+                            </g>
+                            <g class="memory-bank-group" data-index="2" transform="translate(0, 220)">
+                                <rect width="260" height="95" rx="8" class="memory-chip" />
+                                <g class="memory-cells" transform="translate(15, 15)">
+                                    <rect width="50" height="65" rx="4" class="memory-cell" data-cell="0" x="0" />
+                                    <rect width="50" height="65" rx="4" class="memory-cell" data-cell="1" x="60" />
+                                    <rect width="50" height="65" rx="4" class="memory-cell" data-cell="2" x="120" />
+                                    <rect width="50" height="65" rx="4" class="memory-cell" data-cell="3" x="180" />
+                                </g>
+                            </g>
+                            <g class="memory-bank-group" data-index="3" transform="translate(0, 330)">
+                                <rect width="260" height="95" rx="8" class="memory-chip" />
+                                <g class="memory-cells" transform="translate(15, 15)">
+                                    <rect width="50" height="65" rx="4" class="memory-cell" data-cell="0" x="0" />
+                                    <rect width="50" height="65" rx="4" class="memory-cell" data-cell="1" x="60" />
+                                    <rect width="50" height="65" rx="4" class="memory-cell" data-cell="2" x="120" />
+                                    <rect width="50" height="65" rx="4" class="memory-cell" data-cell="3" x="180" />
+                                </g>
+                            </g>
+                        </g>
+                    </g>
+                </g>
+
+                <!-- Wires/Pathways - Dual Bus Design -->
+                <!-- CPU <-> Cache Address Bus (Top) - Aligned with 2nd pin from top -->
+                <path id="wire-cpu-cache-addr" d="M 260 321 Q 327 321 395 321" class="wire wire-address" />
+                <!-- CPU <-> Cache Data Bus (Bottom) - Aligned with 2nd pin from bottom -->
+                <path id="wire-cpu-cache-data" d="M 260 377 Q 327 377 395 377" class="wire wire-data" />
+
+                <!-- Cache <-> Memory Address Bus (Top) -->
+                <path id="wire-cache-memory-addr" d="M 673 321 Q 716 321 760 321" class="wire wire-address" />
+                <!-- Cache <-> Memory Data Bus (Bottom) -->
+                <path id="wire-cache-memory-data" d="M 673 377 Q 716 377 760 377" class="wire wire-data" />
+
+                <!-- Pulses - Request and Data Packets -->
+                <!-- CPU -> Cache Request -->
+                <g id="pulse-cpu-cache-req" class="pulse-group">
+                    <line class="pulse-tail request" x1="260" y1="321" x2="260" y2="321"></line>
+                    <circle class="pulse-head request" cx="260" cy="321" r="7"></circle>
+                </g>
+                <!-- Cache -> CPU Data -->
+                <g id="pulse-cache-cpu-data" class="pulse-group">
+                    <line class="pulse-tail data" x1="395" y1="377" x2="395" y2="377"></line>
+                    <circle class="pulse-head data" cx="395" cy="377" r="10"></circle>
+                </g>
+                <!-- Cache -> Memory Request -->
+                <g id="pulse-cache-memory-req" class="pulse-group">
+                    <line class="pulse-tail request" x1="673" y1="321" x2="673" y2="321"></line>
+                    <circle class="pulse-head request" cx="673" cy="321" r="7"></circle>
+                </g>
+                <!-- Memory -> Cache Data -->
+                <g id="pulse-memory-cache-data" class="pulse-group">
+                    <line class="pulse-tail data" x1="760" y1="377" x2="760" y2="377"></line>
+                    <circle class="pulse-head data" cx="760" cy="377" r="10"></circle>
+                </g>
+
+                </g>
+            </svg>
+        </div>
+        
+        <!-- Right Panel: Event Log -->
+        <div class="panel right-panel">
+            <h2>Event Log</h2>
+            <div id="event-log" class="event-log"></div>
+        </div>
+    </div>
+    
+    <!-- Confirmation Modal -->
+    <div id="reset-modal" class="modal" style="display: none;">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <h3 class="modal-title">Reset Simulation?</h3>
+            <p class="modal-message">This will clear all cache data, statistics, and event logs. This action cannot be undone.</p>
+            <div class="modal-actions">
+                <button id="modal-cancel" class="modal-btn modal-cancel">Cancel</button>
+                <button id="modal-confirm" class="modal-btn modal-confirm">Reset</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>

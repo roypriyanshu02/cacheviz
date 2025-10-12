@@ -1,0 +1,713 @@
+// Cache Configuration
+const CACHE_SIZE = 8;
+const BLOCK_SIZE = 16;
+const MEMORY_BANKS = 4;
+const CELLS_PER_BANK = 4;
+
+// Animation speeds (in milliseconds)
+const ANIMATION_SPEED = {
+    PULSE_TRAVEL: 900,
+    CACHE_FLASH: 500,
+    MEMORY_DELAY: 450,
+    STEP_DELAY: 240,
+    CPU_PROCESS: 600
+};
+
+const LOG_ICONS = {
+    hit: '✅',
+    miss: '⚠️',
+    replace: '🔄',
+    info: 'ℹ️'
+};
+
+// Global State
+const state = {
+    cache: [],
+    memory: [],
+    hits: 0,
+    misses: 0,
+    isAnimating: false,
+    nextReplacement: 0,
+    step: 0
+};
+
+let tooltipElement = null;
+
+// Generate pseudo-random hex data
+function generateRandomHexData() {
+    const hexValues = [
+        'DEADBEEF', 'CAFEF00D', 'BAADF00D', 'FEEDFACE',
+        'C0FFEE00', 'ABAD1DEA', 'DEFACED0', 'FACADE00',
+        'DECAFBAD', 'BEEFCAFE', 'F00DFACE', 'C0DEC0DE',
+        'BADCAB1E', 'FACE1E55', 'DEED5EED', 'BEEF5EED'
+    ];
+    return hexValues[Math.floor(Math.random() * hexValues.length)];
+}
+
+// Initialize main memory with data
+function initializeMemory() {
+    state.memory = [];
+    const totalCells = MEMORY_BANKS * CELLS_PER_BANK;
+    for (let i = 0; i < totalCells; i++) {
+        state.memory.push({
+            address: i * BLOCK_SIZE,
+            data: generateRandomHexData()
+        });
+    }
+    renderMemoryCells();
+}
+
+// Render memory cell data
+function renderMemoryCells() {
+    state.memory.forEach((memBlock, index) => {
+        const bankIndex = Math.floor(index / CELLS_PER_BANK);
+        const cellIndex = index % CELLS_PER_BANK;
+        const bankGroup = document.querySelectorAll('.memory-bank-group')[bankIndex];
+        if (bankGroup) {
+            const cell = bankGroup.querySelectorAll('.memory-cell')[cellIndex];
+            if (cell) {
+                const cellX = parseFloat(cell.getAttribute('x'));
+                
+                // Add main hex text if it doesn't exist
+                let textEl = cell.nextElementSibling;
+                if (!textEl || !textEl.classList.contains('memory-cell-text')) {
+                    textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    textEl.classList.add('memory-cell-text');
+                    textEl.setAttribute('x', cellX + 25);
+                    textEl.setAttribute('y', 38);
+                    cell.parentNode.insertBefore(textEl, cell.nextSibling);
+                }
+                textEl.textContent = memBlock.data.substring(0, 6);
+                
+                // Add "data" label below hex text
+                let labelEl = textEl.nextElementSibling;
+                if (!labelEl || !labelEl.classList.contains('memory-cell-label')) {
+                    labelEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    labelEl.classList.add('memory-cell-label');
+                    labelEl.setAttribute('x', cellX + 25);
+                    labelEl.setAttribute('y', 52);
+                    labelEl.textContent = '(data)';
+                    cell.parentNode.insertBefore(labelEl, textEl.nextSibling);
+                }
+            }
+        }
+    });
+}
+
+// Initialize cache with empty lines
+function initializeCache() {
+    state.cache = [];
+    for (let i = 0; i < CACHE_SIZE; i++) {
+        state.cache.push({
+            valid: false,
+            tag: null,
+            data: null,
+            lastAccess: null
+        });
+    }
+    renderCacheLines();
+}
+
+// Parse memory address from hex string
+function parseAddress(addrStr) {
+    // Remove 0x prefix if present
+    const cleaned = addrStr.replace(/0x/i, '');
+    return parseInt(cleaned, 16);
+}
+
+// Extract tag from address (for fully associative, entire address is tag)
+function getTag(address) {
+    // Block align the address
+    return Math.floor(address / BLOCK_SIZE);
+}
+
+// Search cache for tag (fully associative)
+function searchCache(tag) {
+    for (let i = 0; i < state.cache.length; i++) {
+        if (state.cache[i].valid && state.cache[i].tag === tag) {
+            return i; // Cache hit - return line index
+        }
+    }
+    return -1; // Cache miss
+}
+
+// Find empty cache line or select victim for replacement
+function findVictimLine() {
+    // First, try to find an invalid line
+    for (let i = 0; i < state.cache.length; i++) {
+        if (!state.cache[i].valid) {
+            return i;
+        }
+    }
+    
+    // If all lines are valid, use round-robin replacement
+    const victim = state.nextReplacement;
+    state.nextReplacement = (state.nextReplacement + 1) % CACHE_SIZE;
+    return victim;
+}
+
+// Update cache line
+function updateCacheLine(lineIndex, tag, data) {
+    state.cache[lineIndex] = {
+        valid: true,
+        tag,
+        data,
+        lastAccess: state.step
+    };
+    renderCacheLine(lineIndex);
+}
+
+// Render all cache lines in SVG
+function renderCacheLines() {
+    const container = document.getElementById('cache-lines');
+    container.innerHTML = '';
+    for (let i = 0; i < CACHE_SIZE; i++) {
+        renderCacheLine(i);
+    }
+}
+
+// Render individual cache line
+function renderCacheLine(index) {
+    const container = document.getElementById('cache-lines');
+    const line = state.cache[index];
+    const y = index * 56;
+    let group = document.getElementById(`cache-line-${index}`);
+    if (!group) {
+        group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        group.id = `cache-line-${index}`;
+        group.classList.add('cache-line-group');
+        group.dataset.index = index;
+        container.appendChild(group);
+    }
+    group.innerHTML = '';
+    group.setAttribute('transform', `translate(0, ${y})`);
+    
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', '0');
+    rect.setAttribute('y', '0');
+    rect.setAttribute('width', '230');
+    rect.setAttribute('height', '52');
+    rect.setAttribute('class', line.valid ? 'cache-line' : 'cache-line empty');
+    group.appendChild(rect);
+    
+    // Column 1: Metadata (Line Number + Valid Bit)
+    const lineNum = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    lineNum.setAttribute('x', '10');
+    lineNum.setAttribute('y', '20');
+    lineNum.setAttribute('class', 'cache-line-label');
+    lineNum.textContent = `L${index}`;
+    group.appendChild(lineNum);
+    
+    const validText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    validText.setAttribute('x', '10');
+    validText.setAttribute('y', '38');
+    validText.setAttribute('class', 'cache-line-valid');
+    validText.setAttribute('fill', line.valid ? 'var(--color-hit)' : 'var(--text-secondary)');
+    validText.textContent = line.valid ? 'V: 1' : 'V: 0';
+    group.appendChild(validText);
+    
+    // Column 2: Tag
+    const tagLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    tagLabel.setAttribute('x', '50');
+    tagLabel.setAttribute('y', '20');
+    tagLabel.setAttribute('class', 'cache-line-label');
+    tagLabel.textContent = 'TAG';
+    group.appendChild(tagLabel);
+    
+    const tagValue = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    tagValue.setAttribute('x', '50');
+    tagValue.setAttribute('y', '38');
+    tagValue.setAttribute('class', 'cache-line-text');
+    tagValue.textContent = line.valid ? `0x${line.tag.toString(16).toUpperCase()}` : '-';
+    group.appendChild(tagValue);
+    
+    // Column 3: Data
+    const dataLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    dataLabel.setAttribute('x', '115');
+    dataLabel.setAttribute('y', '20');
+    dataLabel.setAttribute('class', 'cache-line-label');
+    dataLabel.textContent = 'DATA';
+    group.appendChild(dataLabel);
+    
+    const dataValue = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    dataValue.setAttribute('x', '115');
+    dataValue.setAttribute('y', '38');
+    dataValue.setAttribute('class', 'cache-line-text');
+    dataValue.setAttribute('font-size', '11');
+    // Truncate data text if too long (max 18 chars) to prevent overflow
+    let displayData = line.valid ? line.data : '-';
+    if (displayData.length > 18) {
+        displayData = displayData.substring(0, 18) + '…';
+    }
+    dataValue.textContent = displayData;
+    group.appendChild(dataValue);
+    
+    group.dataset.tag = line.valid ? `0x${line.tag.toString(16).toUpperCase()}` : '—';
+    group.dataset.data = line.valid ? line.data : '—';
+    group.dataset.access = line.lastAccess != null ? line.lastAccess : '—';
+    
+    if (!group.dataset.bound) {
+        group.addEventListener('mouseenter', handleCacheLineEnter);
+        group.addEventListener('mousemove', handleCacheLineMove);
+        group.addEventListener('mouseleave', hideTooltip);
+        group.dataset.bound = 'true';
+    }
+    group.classList.toggle('hoverable', line.valid);
+}
+
+// Update statistics display
+function updateStats() {
+    document.querySelector('.hit-count').textContent = state.hits;
+    document.querySelector('.miss-count').textContent = state.misses;
+    
+    const total = state.hits + state.misses;
+    const hitRate = total > 0 ? ((state.hits / total) * 100).toFixed(1) : 0;
+    document.querySelector('.hit-rate').textContent = `${hitRate}%`;
+}
+
+// Add entry to event log
+function addLogEntry(message, type = 'info') {
+    const log = document.getElementById('event-log');
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    const icon = document.createElement('div');
+    icon.className = 'log-entry-icon';
+    icon.textContent = LOG_ICONS[type] || LOG_ICONS.info;
+    const textWrap = document.createElement('div');
+    textWrap.className = 'log-text';
+    const messageEl = document.createElement('div');
+    messageEl.className = 'log-message';
+    messageEl.textContent = message;
+    const timestampEl = document.createElement('div');
+    timestampEl.className = 'log-timestamp';
+    timestampEl.textContent = new Date().toLocaleTimeString();
+    textWrap.appendChild(messageEl);
+    textWrap.appendChild(timestampEl);
+    entry.appendChild(icon);
+    entry.appendChild(textWrap);
+    log.insertBefore(entry, log.firstChild);
+    while (log.children.length > 50) {
+        log.removeChild(log.lastChild);
+    }
+}
+
+function animatePulse(pulseId, pathId, duration, variant, reverse = false) {
+    return new Promise(resolve => {
+        const pulseGroup = document.getElementById(pulseId);
+        const head = pulseGroup.querySelector('.pulse-head');
+        const tail = pulseGroup.querySelector('.pulse-tail');
+        const path = document.getElementById(pathId);
+        const pathLength = path.getTotalLength();
+        pulseGroup.style.display = 'block';
+        if (variant) {
+            head.classList.add(variant);
+            tail.classList.add(variant);
+        }
+        const startTime = performance.now();
+        function step(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+            const headLength = reverse ? pathLength * (1 - eased) : pathLength * eased;
+            const tailLength = reverse 
+                ? Math.min(headLength + 60, pathLength)
+                : Math.max(headLength - 60, 0);
+            const headPoint = path.getPointAtLength(headLength);
+            const tailPoint = path.getPointAtLength(tailLength);
+            head.setAttribute('cx', headPoint.x);
+            head.setAttribute('cy', headPoint.y);
+            tail.setAttribute('x1', tailPoint.x);
+            tail.setAttribute('y1', tailPoint.y);
+            tail.setAttribute('x2', headPoint.x);
+            tail.setAttribute('y2', headPoint.y);
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            } else {
+                pulseGroup.style.display = 'none';
+                if (variant) {
+                    head.classList.remove(variant);
+                    tail.classList.remove(variant);
+                }
+                resolve();
+            }
+        }
+        requestAnimationFrame(step);
+    });
+}
+
+// CPU Processing Animation
+function animateCPUProcessing() {
+    return new Promise(resolve => {
+        const cpuCore = document.getElementById('cpu-core');
+        const coreLines = document.getElementById('cpu-core-lines');
+        cpuCore.classList.add('cpu-processing');
+        coreLines.classList.add('cpu-core-processing');
+        
+        setTimeout(() => {
+            cpuCore.classList.remove('cpu-processing');
+            coreLines.classList.remove('cpu-core-processing');
+            resolve();
+        }, 600);
+    });
+}
+
+// Activate wire
+function activateWire(wireId) {
+    const wire = document.getElementById(wireId);
+    if (wire) {
+        wire.classList.add('active');
+        setTimeout(() => {
+            wire.classList.remove('active');
+        }, ANIMATION_SPEED.PULSE_TRAVEL);
+    }
+}
+
+// Flash cache line on hit
+function flashCacheLine(lineIndex) {
+    return new Promise(resolve => {
+        const group = document.getElementById(`cache-line-${lineIndex}`);
+        const rect = group.querySelector('.cache-line');
+        rect.classList.add('hit-animation');
+        
+        setTimeout(() => {
+            rect.classList.remove('hit-animation');
+            resolve();
+        }, ANIMATION_SPEED.CACHE_FLASH);
+    });
+}
+
+// Flash cache on miss
+function shakeCacheOnMiss() {
+    return new Promise(resolve => {
+        const cacheBody = document.querySelector('.cache-body');
+        const originalStroke = cacheBody.style.stroke;
+        cacheBody.style.stroke = 'rgba(253, 126, 20, 0.8)';
+        cacheBody.style.strokeWidth = '3';
+        cacheBody.style.animation = 'missShake 0.4s ease-in-out';
+        setTimeout(() => {
+            cacheBody.style.animation = '';
+            cacheBody.style.stroke = originalStroke;
+            cacheBody.style.strokeWidth = '';
+            resolve();
+        }, 400);
+    });
+}
+
+function triggerCpuProcessing() {
+    return new Promise(resolve => {
+        const core = document.getElementById('cpu-core');
+        const lines = document.getElementById('cpu-core-lines');
+        core.classList.add('processing');
+        lines.classList.add('processing');
+        setTimeout(() => {
+            core.classList.remove('processing');
+            lines.classList.remove('processing');
+            resolve();
+        }, ANIMATION_SPEED.CPU_PROCESS);
+    });
+}
+
+function highlightMemory(address) {
+    const blockIndex = Math.floor(address / BLOCK_SIZE);
+    const bankIndex = Math.floor(blockIndex / CELLS_PER_BANK) % MEMORY_BANKS;
+    const cellIndex = blockIndex % CELLS_PER_BANK;
+    document.querySelectorAll('.memory-bank-group').forEach((group, idx) => {
+        if (idx === bankIndex) {
+            group.classList.add('highlight');
+            group.querySelectorAll('.memory-cell').forEach((cell, cellIdx) => {
+                cell.classList.toggle('highlight', cellIdx === cellIndex);
+            });
+        } else {
+            group.classList.remove('highlight');
+            group.querySelectorAll('.memory-cell').forEach(cell => cell.classList.remove('highlight'));
+        }
+    });
+}
+
+function clearMemoryHighlight() {
+    document.querySelectorAll('.memory-bank-group').forEach(group => {
+        group.classList.remove('highlight');
+        group.querySelectorAll('.memory-cell').forEach(cell => cell.classList.remove('highlight'));
+    });
+}
+
+async function animateCacheHit(lineIndex, address, actionVerb) {
+    // Step 1: CPU Processing
+    await animateCPUProcessing();
+    
+    // Step 2: CPU -> Cache request on address bus
+    activateWire('wire-cpu-cache-addr');
+    await animatePulse('pulse-cpu-cache-req', 'wire-cpu-cache-addr', ANIMATION_SPEED.PULSE_TRAVEL, null, false);
+    await new Promise(resolve => setTimeout(resolve, ANIMATION_SPEED.STEP_DELAY));
+    
+    // Step 3: Cache hit flash
+    await flashCacheLine(lineIndex);
+    addLogEntry(`${actionVerb} 0x${address.toString(16).toUpperCase()} -> HIT (Line ${lineIndex})`, 'hit');
+    await new Promise(resolve => setTimeout(resolve, ANIMATION_SPEED.STEP_DELAY));
+    
+    // Step 4: Cache -> CPU data return on data bus
+    activateWire('wire-cpu-cache-data');
+    await animatePulse('pulse-cache-cpu-data', 'wire-cpu-cache-data', ANIMATION_SPEED.PULSE_TRAVEL, 'hit', true);
+}
+
+async function animateCacheMiss(lineIndex, address, tag, actionVerb, replacedTag) {
+    // Step 1: CPU Processing
+    await animateCPUProcessing();
+    
+    // Step 2: CPU -> Cache request on address bus
+    activateWire('wire-cpu-cache-addr');
+    await animatePulse('pulse-cpu-cache-req', 'wire-cpu-cache-addr', ANIMATION_SPEED.PULSE_TRAVEL, null, false);
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Step 3: Cache indicates MISS
+    await shakeCacheOnMiss();
+    addLogEntry(`${actionVerb} 0x${address.toString(16).toUpperCase()} -> MISS`, 'miss');
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Step 4: Show fade-out of replaced line if valid
+    if (replacedTag != null) {
+        const group = document.getElementById(`cache-line-${lineIndex}`);
+        const rect = group.querySelector('.cache-line');
+        rect.classList.add('replacing');
+        addLogEntry(`REPLACE Line ${lineIndex} (was 0x${replacedTag.toString(16).toUpperCase()})`, 'replace');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        rect.classList.remove('replacing');
+    }
+    
+    // Step 5: Cache -> Memory request on address bus
+    activateWire('wire-cache-memory-addr');
+    await animatePulse('pulse-cache-memory-req', 'wire-cache-memory-addr', ANIMATION_SPEED.PULSE_TRAVEL, 'miss', false);
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Step 6: Highlight correct block in Main Memory
+    highlightMemory(address);
+    await new Promise(resolve => setTimeout(resolve, ANIMATION_SPEED.MEMORY_DELAY));
+    
+    // Step 7: Memory -> Cache data on data bus
+    activateWire('wire-cache-memory-data');
+    await animatePulse('pulse-memory-cache-data', 'wire-cache-memory-data', ANIMATION_SPEED.PULSE_TRAVEL, 'miss', true);
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Step 8: Cache line visibly updates with fade-in
+    updateCacheLine(lineIndex, tag, `Block@0x${address.toString(16).toUpperCase()}`);
+    const group = document.getElementById(`cache-line-${lineIndex}`);
+    const rect = group.querySelector('.cache-line');
+    rect.classList.add('updating');
+    await flashCacheLine(lineIndex);
+    addLogEntry(`FETCH 0x${address.toString(16).toUpperCase()} -> Stored in Line ${lineIndex}`, 'info');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    rect.classList.remove('updating');
+    
+    // Step 9: Clear memory highlight and deliver to CPU on data bus
+    clearMemoryHighlight();
+    await new Promise(resolve => setTimeout(resolve, 200));
+    activateWire('wire-cpu-cache-data');
+    await animatePulse('pulse-cache-cpu-data', 'wire-cpu-cache-data', ANIMATION_SPEED.PULSE_TRAVEL, 'hit', true);
+}
+
+// Process memory access command
+async function processMemoryAccess(operation, address) {
+    if (state.isAnimating) {
+        addLogEntry('Animation in progress, please wait...', 'info');
+        return;
+    }
+    state.isAnimating = true;
+    document.getElementById('execute-btn').disabled = true;
+    state.step += 1;
+    clearMemoryHighlight();
+    await triggerCpuProcessing();
+    const tag = getTag(address);
+    const lineIndex = searchCache(tag);
+    const actionVerb = operation === 'STORE' ? 'WRITE' : 'READ';
+    if (lineIndex !== -1) {
+        state.hits++;
+        state.cache[lineIndex].lastAccess = state.step;
+        if (operation === 'STORE') {
+            state.cache[lineIndex].data = `Write@0x${address.toString(16).toUpperCase()}`;
+        }
+        renderCacheLine(lineIndex);
+        await animateCacheHit(lineIndex, address, actionVerb);
+    } else {
+        state.misses++;
+        const victimLine = findVictimLine();
+        const replacedTag = state.cache[victimLine].valid ? state.cache[victimLine].tag : null;
+        await animateCacheMiss(victimLine, address, tag, actionVerb, replacedTag);
+    }
+    updateStats();
+    state.isAnimating = false;
+    document.getElementById('execute-btn').disabled = false;
+}
+
+// Parse and execute single command
+function executeSingleCommand(command) {
+    const trimmed = command.trim();
+    if (!trimmed) return null;
+    
+    // Parse commands like: LOAD R1, 0x1A4 or STORE R2, 0x2B0
+    const regex = /^(LOAD|STORE)\s+R\d+,\s*0x([0-9A-Fa-f]+)$/i;
+    const match = trimmed.match(regex);
+    
+    if (!match) {
+        return null;
+    }
+    
+    const operation = match[1].toUpperCase();
+    const address = parseAddress(match[2]);
+    
+    return { operation, address };
+}
+
+// Execute multi-line commands sequentially
+async function executeCommand(commandText) {
+    const trimmed = commandText.trim();
+    if (!trimmed) return;
+    
+    // Split by newlines and filter empty lines
+    const lines = trimmed.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    
+    if (lines.length === 0) return;
+    
+    // Check if already animating
+    if (state.isAnimating) {
+        addLogEntry('Animation in progress, please wait...', 'info');
+        return;
+    }
+    
+    // Parse all commands first to validate
+    const commands = [];
+    for (const line of lines) {
+        const parsed = executeSingleCommand(line);
+        if (!parsed) {
+            addLogEntry(`Invalid command: "${line}". Use: LOAD/STORE Rn, 0xADDR`, 'info');
+            return;
+        }
+        commands.push(parsed);
+    }
+    
+    // Execute commands sequentially
+    for (let i = 0; i < commands.length; i++) {
+        const { operation, address } = commands[i];
+        await processMemoryAccess(operation, address);
+        
+        // Add delay between commands if there are more
+        if (i < commands.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+        }
+    }
+}
+
+// Show reset confirmation modal
+function showResetModal() {
+    if (state.isAnimating) {
+        addLogEntry('Cannot reset during animation', 'info');
+        return;
+    }
+    const modal = document.getElementById('reset-modal');
+    modal.style.display = 'flex';
+}
+
+// Hide reset confirmation modal
+function hideResetModal() {
+    const modal = document.getElementById('reset-modal');
+    modal.style.display = 'none';
+}
+
+// Reset simulation
+function resetSimulation() {
+    state.hits = 0;
+    state.misses = 0;
+    state.nextReplacement = 0;
+    state.step = 0;
+    initializeCache();
+    initializeMemory();
+    updateStats();
+    document.getElementById('event-log').innerHTML = '';
+    addLogEntry('RESET -> Simulation ready', 'info');
+    clearMemoryHighlight();
+    hideTooltip();
+    hideResetModal();
+}
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize
+    initializeCache();
+    initializeMemory();
+    updateStats();
+    addLogEntry('INIT -> RISC Cache-Flow ready', 'info');
+    addLogEntry(`CONFIG -> ${CACHE_SIZE} lines, ${BLOCK_SIZE}B blocks`, 'info');
+    
+    // Execute button
+    document.getElementById('execute-btn').addEventListener('click', () => {
+        const input = document.getElementById('command-input');
+        executeCommand(input.value);
+    });
+    
+    // Ctrl+Enter or Cmd+Enter in textarea to execute
+    document.getElementById('command-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            executeCommand(e.target.value);
+        }
+    });
+    
+    // Reset button - show modal
+    document.getElementById('reset-btn').addEventListener('click', showResetModal);
+    
+    // Modal handlers
+    document.getElementById('modal-cancel').addEventListener('click', hideResetModal);
+    document.getElementById('modal-confirm').addEventListener('click', resetSimulation);
+    document.querySelector('.modal-overlay').addEventListener('click', hideResetModal);
+    
+    // Example items
+    document.querySelectorAll('.example-item').forEach(item => {
+        item.addEventListener('click', () => {
+            // Decode HTML entities (&#10; = newline)
+            const command = item.getAttribute('data-command').replace(/&#10;/g, '\n');
+            document.getElementById('command-input').value = command;
+            executeCommand(command);
+        });
+    });
+    tooltipElement = document.createElement('div');
+    tooltipElement.className = 'tooltip';
+    tooltipElement.style.display = 'none';
+    document.body.appendChild(tooltipElement);
+});
+
+function handleCacheLineEnter(event) {
+    const index = Number(event.currentTarget.dataset.index);
+    const line = state.cache[index];
+    if (!line.valid) {
+        hideTooltip();
+        return;
+    }
+    showTooltip(event, line);
+}
+
+function handleCacheLineMove(event) {
+    const index = Number(event.currentTarget.dataset.index);
+    const line = state.cache[index];
+    if (!line.valid) {
+        hideTooltip();
+        return;
+    }
+    showTooltip(event, line);
+}
+
+function showTooltip(event, line) {
+    if (!tooltipElement) return;
+    tooltipElement.innerHTML = `
+        <div><strong>Full Tag:</strong> 0x${line.tag.toString(16).toUpperCase()}</div>
+        <div><strong>Data:</strong> ${line.data}</div>
+        <div><strong>Last Accessed:</strong> ${line.lastAccess}</div>
+    `;
+    tooltipElement.style.display = 'block';
+    tooltipElement.style.left = `${event.clientX + 16}px`;
+    tooltipElement.style.top = `${event.clientY + 16}px`;
+}
+
+function hideTooltip() {
+    if (tooltipElement) {
+        tooltipElement.style.display = 'none';
+    }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "risc-cacheflow",
+  "version": "1.0.0",
+  "description": "Interactive educational tool for visualizing fully associative cache operations",
+  "scripts": {
+    "start": "bun run server.ts",
+    "dev": "bun run server.ts"
+  },
+  "keywords": [
+    "cache",
+    "education",
+    "visualization",
+    "computer-architecture",
+    "risc"
+  ],
+  "author": "",
+  "license": "MIT"
+}
