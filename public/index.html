@@ -28,7 +28,25 @@
                     <span class="stat-value hit-rate" aria-label="Cache hit rate percentage">0%</span>
                 </div>
             </div>
-            
+
+            <div id="address-breakdown" class="address-breakdown" style="display: none;">
+                <div class="breakdown-title">Address Breakdown</div>
+                <div class="breakdown-bits">
+                    <div class="bit-group bit-tag">
+                        <div class="bit-label">TAG</div>
+                        <div class="bit-value" id="tag-value">-</div>
+                    </div>
+                    <div class="bit-group bit-index-set">
+                        <div class="bit-label" id="index-set-label">INDEX</div>
+                        <div class="bit-value" id="index-set-value">-</div>
+                    </div>
+                    <div class="bit-group bit-offset">
+                        <div class="bit-label">OFFSET</div>
+                        <div class="bit-value" id="offset-value">-</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="mode-section" role="region" aria-labelledby="mode-heading">
                 <h2 id="mode-heading">Cache Mapping Mode</h2>
                 <div class="mode-options" role="radiogroup" aria-labelledby="mode-heading">
@@ -63,25 +81,6 @@ LOAD R2, 0x1A4"
                 ></textarea>
                 <div id="command-help" class="sr-only">Enter LOAD or STORE commands in the format: LOAD Rn, 0xADDR or STORE Rn, 0xADDR. Use Ctrl+Enter to execute.</div>
                 <button id="execute-btn" class="execute-btn" aria-label="Execute the entered cache commands">Execute</button>
-                
-                <!-- Address Breakdown Visualization -->
-                <div id="address-breakdown" class="address-breakdown" style="display: none;">
-                    <div class="breakdown-title">Address Breakdown</div>
-                    <div class="breakdown-bits">
-                        <div class="bit-group bit-tag">
-                            <div class="bit-label">TAG</div>
-                            <div class="bit-value" id="tag-value">-</div>
-                        </div>
-                        <div class="bit-group bit-index-set">
-                            <div class="bit-label" id="index-set-label">INDEX</div>
-                            <div class="bit-value" id="index-set-value">-</div>
-                        </div>
-                        <div class="bit-group bit-offset">
-                            <div class="bit-label">OFFSET</div>
-                            <div class="bit-value" id="offset-value">-</div>
-                        </div>
-                    </div>
-                </div>
             </div>
             
             <div class="examples-section" role="region" aria-labelledby="examples-heading">
