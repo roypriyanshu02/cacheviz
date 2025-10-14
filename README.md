@@ -18,11 +18,11 @@ An interactive web-based visualizer for comparing cache mapping functions: Direc
 - Real-time Statistics Tracking
 
 ## Tech Stack
-Built with vanilla HTML, CSS, and JavaScript. Served by Bun.
+Built with vanilla HTML, CSS, and JavaScript. Served by Deno.
 
 ## How to Run
-1. Ensure Bun is installed.
-2. Run `bun run server.ts` in the project directory.
+1. Ensure Deno is installed (https://deno.land/).
+2. Run `deno task dev` to start the development server with hot-reloading, or `deno task start` for production.
 3. Open `http://localhost:3000` in your browser.
 
 ## Usage
