@@ -1,17 +1,20 @@
 {
-  "name": "risc-cacheflow",
-  "version": "1.0.0",
-  "description": "Interactive educational tool for visualizing fully associative cache operations",
+  "name": "cacheviz",
+  "version": "2.0.0",
+  "description": "Interactive web-based visualizer for comparing cache mapping functions: Direct Mapped, Set-Associative, and Fully Associative",
   "scripts": {
     "start": "deno task start",
     "dev": "deno task dev"
   },
   "keywords": [
     "cache",
+    "cache-visualization",
     "education",
-    "visualization",
     "computer-architecture",
-    "risc"
+    "cache-simulator",
+    "direct-mapped",
+    "set-associative",
+    "fully-associative"
   ],
   "author": "",
   "license": "MIT"

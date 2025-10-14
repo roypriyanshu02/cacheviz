@@ -276,18 +276,22 @@ function updateCacheLine(lineIndex, tag, data) {
     renderCacheLine(lineIndex);
 }
 
-// Update address breakdown display
+// Update address breakdown display with smooth transitions
 function updateAddressBreakdown(address) {
     const breakdownDiv = document.getElementById('address-breakdown');
     
-    // Show/hide based on mode
+    // Show/hide based on mode with smooth transitions
     if (state.mode === 'fully-associative') {
-        breakdownDiv.style.display = 'none';
+        if (breakdownDiv.classList.contains('visible')) {
+            breakdownDiv.classList.remove('visible');
+            setTimeout(() => {
+                breakdownDiv.style.display = 'none';
+            }, 300); // Match transition duration
+        }
         return;
     }
     
-    breakdownDiv.style.display = 'block';
-    
+    // Update values
     const tag = getTag(address);
     const offset = getOffset(address);
     
@@ -302,6 +306,16 @@ function updateAddressBreakdown(address) {
         const setNum = getSet(address);
         document.getElementById('index-set-label').textContent = 'SET';
         document.getElementById('index-set-value').textContent = setNum.toString();
+    }
+    
+    // Show with transition
+    if (breakdownDiv.style.display === 'none') {
+        breakdownDiv.style.display = 'block';
+        // Force reflow to enable transition
+        breakdownDiv.offsetHeight;
+        requestAnimationFrame(() => {
+            breakdownDiv.classList.add('visible');
+        });
     }
 }
 
@@ -461,14 +475,36 @@ function renderCacheLine(index) {
     group.classList.toggle('hoverable', line.valid);
 }
 
-// Update statistics display
+// Update statistics display (optimized with smooth animations)
 function updateStats() {
-    document.querySelector('.hit-count').textContent = state.hits;
-    document.querySelector('.miss-count').textContent = state.misses;
+    const hitCountEl = document.querySelector('.hit-count');
+    const missCountEl = document.querySelector('.miss-count');
+    const hitRateEl = document.querySelector('.hit-rate');
+    
+    const newHitCount = state.hits.toString();
+    const newMissCount = state.misses.toString();
+    
+    if (hitCountEl.textContent !== newHitCount) {
+        hitCountEl.textContent = newHitCount;
+        hitCountEl.classList.add('updated');
+        setTimeout(() => hitCountEl.classList.remove('updated'), 300);
+    }
+    
+    if (missCountEl.textContent !== newMissCount) {
+        missCountEl.textContent = newMissCount;
+        missCountEl.classList.add('updated');
+        setTimeout(() => missCountEl.classList.remove('updated'), 300);
+    }
     
     const total = state.hits + state.misses;
     const hitRate = total > 0 ? ((state.hits / total) * 100).toFixed(1) : 0;
-    document.querySelector('.hit-rate').textContent = `${hitRate}%`;
+    const newHitRate = `${hitRate}%`;
+    
+    if (hitRateEl.textContent !== newHitRate) {
+        hitRateEl.textContent = newHitRate;
+        hitRateEl.classList.add('updated');
+        setTimeout(() => hitRateEl.classList.remove('updated'), 300);
+    }
 }
 
 // Add entry to event log
@@ -842,8 +878,13 @@ function executeSingleCommand(command) {
     }
 }
 
-// Execute multi-line commands sequentially
+// Execute multi-line commands sequentially with visual error feedback
 async function executeCommand(commandText) {
+    const inputElement = document.getElementById('command-input');
+    
+    // Clear previous error state
+    inputElement.classList.remove('error');
+    
     const trimmed = commandText.trim();
     if (!trimmed) return;
     
@@ -864,12 +905,26 @@ async function executeCommand(commandText) {
         try {
             const parsed = executeSingleCommand(lines[i]);
             if (!parsed) {
-                addLogEntry(`Invalid command on line ${i + 1}: "${lines[i]}". Use: LOAD/STORE Rn, 0xADDR`, 'info');
+                // Show visual error feedback
+                inputElement.classList.add('error');
+                addLogEntry(`❌ Invalid command on line ${i + 1}: "${lines[i]}". Use: LOAD/STORE Rn, 0xADDR`, 'info');
+                
+                // Clear error state after animation
+                setTimeout(() => {
+                    inputElement.classList.remove('error');
+                }, 1000);
                 return;
             }
             commands.push(parsed);
         } catch (error) {
-            addLogEntry(`Error on line ${i + 1}: ${error.message}`, 'info');
+            // Show visual error feedback
+            inputElement.classList.add('error');
+            addLogEntry(`❌ Error on line ${i + 1}: ${error.message}`, 'info');
+            
+            // Clear error state after animation
+            setTimeout(() => {
+                inputElement.classList.remove('error');
+            }, 1000);
             return;
         }
     }
@@ -880,7 +935,7 @@ async function executeCommand(commandText) {
         try {
             await processMemoryAccess(operation, address);
         } catch (error) {
-            addLogEntry(`Runtime error executing "${operation} R?, 0x${address.toString(16).toUpperCase()}": ${error.message}`, 'info');
+            addLogEntry(`❌ Runtime error executing "${operation} R?, 0x${address.toString(16).toUpperCase()}": ${error.message}`, 'info');
             return;
         }
         
@@ -891,7 +946,7 @@ async function executeCommand(commandText) {
     }
 }
 
-// Show reset confirmation modal
+// Show reset confirmation modal with focus management
 function showResetModal() {
     if (state.isAnimating) {
         addLogEntry('Cannot reset during animation', 'info');
@@ -899,33 +954,77 @@ function showResetModal() {
     }
     const modal = document.getElementById('reset-modal');
     modal.style.display = 'flex';
+    
+    // Store previously focused element
+    modal.dataset.previousFocus = document.activeElement.id || '';
+    
+    // Focus the cancel button for accessibility
+    setTimeout(() => {
+        document.getElementById('modal-cancel').focus();
+    }, 100);
 }
 
-// Hide reset confirmation modal
+// Hide reset confirmation modal and restore focus
 function hideResetModal() {
     const modal = document.getElementById('reset-modal');
+    const previousFocusId = modal.dataset.previousFocus;
+    
     modal.style.display = 'none';
+    
+    // Restore focus to previous element
+    if (previousFocusId) {
+        const previousElement = document.getElementById(previousFocusId);
+        if (previousElement) {
+            previousElement.focus();
+        }
+    }
 }
 
-// Reset simulation
+// Reset simulation with complete state cleanup
 function resetSimulation() {
+    // Reset all state variables
     state.hits = 0;
     state.misses = 0;
     state.nextReplacement = 0;
     state.step = 0;
+    state.isAnimating = false;
+    
+    // Clear any input errors
+    const inputElement = document.getElementById('command-input');
+    if (inputElement) {
+        inputElement.classList.remove('error');
+    }
+    
+    // Re-initialize cache and memory
     initializeCache();
     initializeMemory();
+    
+    // Update UI
     updateStats();
     document.getElementById('event-log').innerHTML = '';
-    addLogEntry('RESET -> Simulation ready', 'info');
-    addLogEntry(`MODE -> ${state.mode.replace('-', ' ').toUpperCase()}`, 'info');
+    
+    // Clear all visual states
     clearMemoryHighlight();
     clearAddressBreakdown();
     hideTooltip();
+    
+    // Remove any active animations
+    document.querySelectorAll('.wire').forEach(wire => wire.classList.remove('active'));
+    document.querySelectorAll('.cache-line').forEach(line => {
+        line.classList.remove('hit-animation', 'miss-animation', 'replacing', 'updating', 'target-line');
+    });
+    
+    // Re-enable execute button
+    document.getElementById('execute-btn').disabled = false;
+    
+    // Log reset
+    addLogEntry('RESET -> Simulation ready', 'info');
+    addLogEntry(`MODE -> ${state.mode.replace('-', ' ').toUpperCase()}`, 'info');
+    
     hideResetModal();
 }
 
-// Handle mode change
+// Handle mode change with complete state cleanup
 function handleModeChange(newMode) {
     if (state.isAnimating) {
         addLogEntry('Cannot change mode during animation', 'info');
@@ -936,25 +1035,51 @@ function handleModeChange(newMode) {
     
     state.mode = newMode;
     
-    // Reset simulation when mode changes
+    // Perform complete reset when mode changes
     state.hits = 0;
     state.misses = 0;
     state.nextReplacement = 0;
     state.step = 0;
+    state.isAnimating = false;
+    
+    // Clear any input errors
+    const inputElement = document.getElementById('command-input');
+    if (inputElement) {
+        inputElement.classList.remove('error');
+    }
+    
+    // Re-initialize cache and memory
     initializeCache();
     initializeMemory();
+    
+    // Update UI
     updateStats();
     document.getElementById('event-log').innerHTML = '';
+    
+    // Clear all visual states
+    clearMemoryHighlight();
+    clearAddressBreakdown();
+    hideTooltip();
+    
+    // Remove any active animations
+    document.querySelectorAll('.wire').forEach(wire => wire.classList.remove('active'));
+    document.querySelectorAll('.cache-line').forEach(line => {
+        line.classList.remove('hit-animation', 'miss-animation', 'replacing', 'updating', 'target-line');
+    });
+    document.querySelectorAll('.cache-line-group').forEach(group => {
+        group.classList.remove('in-set-highlight');
+    });
+    
+    // Re-enable execute button
+    document.getElementById('execute-btn').disabled = false;
+    
+    // Log mode change
     addLogEntry('MODE CHANGED -> Simulation reset', 'info');
     addLogEntry(`MODE -> ${state.mode.replace('-', ' ').toUpperCase()}`, 'info');
     
     if (state.mode === 'set-associative') {
         addLogEntry(`CONFIG -> ${ASSOCIATIVITY}-Way Set-Associative`, 'info');
     }
-    
-    clearMemoryHighlight();
-    clearAddressBreakdown();
-    hideTooltip();
 }
 
 // Event Listeners
@@ -963,7 +1088,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeCache();
     initializeMemory();
     updateStats();
-    addLogEntry('INIT -> RISC Cache-Flow ready', 'info');
+    addLogEntry('INIT -> CacheViz ready', 'info');
     addLogEntry(`CONFIG -> ${CACHE_SIZE} lines, ${BLOCK_SIZE}B blocks`, 'info');
     addLogEntry(`MODE -> ${state.mode.replace('-', ' ').toUpperCase()}`, 'info');
     
@@ -998,13 +1123,32 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('modal-confirm').addEventListener('click', resetSimulation);
     document.querySelector('.modal-overlay').addEventListener('click', hideResetModal);
     
-    // Example items
+    // Keyboard support for modal (Escape key)
+    document.addEventListener('keydown', (e) => {
+        const modal = document.getElementById('reset-modal');
+        if (e.key === 'Escape' && modal.style.display === 'flex') {
+            e.preventDefault();
+            hideResetModal();
+        }
+    });
+    
+    // Example items - click and keyboard support
     document.querySelectorAll('.example-item').forEach(item => {
-        item.addEventListener('click', () => {
+        const loadExample = () => {
             // Decode HTML entities (&#10; = newline)
             const command = item.getAttribute('data-command').replace(/&#10;/g, '\n');
             document.getElementById('command-input').value = command;
             executeCommand(command);
+        };
+        
+        item.addEventListener('click', loadExample);
+        
+        // Keyboard support (Enter or Space)
+        item.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                loadExample();
+            }
         });
     });
     tooltipElement = document.createElement('div');

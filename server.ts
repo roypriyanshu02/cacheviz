@@ -38,6 +38,6 @@ Deno.serve({
     }
   },
   onListen: ({ port }) => {
-    console.log(`🚀 RISC Cache-Flow server running at http://localhost:${port}`);
+    console.log(`🚀 CacheViz server running at http://localhost:${port}`);
   },
 });

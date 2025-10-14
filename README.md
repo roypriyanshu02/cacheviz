@@ -1,4 +1,4 @@
-# RISC Cache-Flow
+# CacheViz
 
 An interactive web-based visualizer for comparing cache mapping functions: Direct Mapped, N-Way Set-Associative, and Fully Associative.
 

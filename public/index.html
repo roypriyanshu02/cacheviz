@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RISC Cache-Flow</title>
+    <title>CacheViz - Interactive Cache Visualizer</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -11,21 +11,21 @@
     <div class="container" role="main" id="main-content">
         <!-- Left Panel: Control & Info -->
         <div class="panel left-panel" role="complementary" aria-label="Cache control panel">
-            <h1 class="title">RISC Cache-Flow</h1>
+            <h1 class="title">CacheViz</h1>
             
-            <div class="stats-section" role="region" aria-labelledby="stats-heading">
+            <div class="stats-section" role="region" aria-labelledby="stats-heading" aria-live="polite" aria-atomic="false">
                 <h2 id="stats-heading">Statistics</h2>
                 <div class="stat-item">
                     <span class="stat-label">Cache Hits:</span>
-                    <span class="stat-value hit-count">0</span>
+                    <span class="stat-value hit-count" aria-label="Cache hits count">0</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-label">Cache Misses:</span>
-                    <span class="stat-value miss-count">0</span>
+                    <span class="stat-value miss-count" aria-label="Cache misses count">0</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-label">Hit Rate:</span>
-                    <span class="stat-value hit-rate">0%</span>
+                    <span class="stat-value hit-rate" aria-label="Cache hit rate percentage">0%</span>
                 </div>
             </div>
             
@@ -84,17 +84,17 @@ LOAD R2, 0x1A4"
                 </div>
             </div>
             
-            <div class="examples-section">
-                <h2>Examples</h2>
-                <ul class="examples-list">
-                    <li class="example-item" data-command="LOAD R1, 0x1A4">The First Miss</li>
-                    <li class="example-item" data-command="LOAD R1, 0x1A4&#10;LOAD R3, 0x2B0&#10;STORE R2, 0x1A4">Miss, then Hit</li>
-                    <li class="example-item" data-command="LOAD R1, 0x1A4&#10;STORE R2, 0x2B0&#10;LOAD R3, 0x3C8&#10;STORE R4, 0x4D0&#10;LOAD R5, 0x1A4">Forcing a Replacement</li>
+            <div class="examples-section" role="region" aria-labelledby="examples-heading">
+                <h2 id="examples-heading">Examples</h2>
+                <ul class="examples-list" role="list">
+                    <li class="example-item" data-command="LOAD R1, 0x1A4" tabindex="0" role="button" aria-label="Load example: The First Miss">The First Miss</li>
+                    <li class="example-item" data-command="LOAD R1, 0x1A4&#10;LOAD R3, 0x2B0&#10;STORE R2, 0x1A4" tabindex="0" role="button" aria-label="Load example: Miss, then Hit">Miss, then Hit</li>
+                    <li class="example-item" data-command="LOAD R1, 0x1A4&#10;STORE R2, 0x2B0&#10;LOAD R3, 0x3C8&#10;STORE R4, 0x4D0&#10;LOAD R5, 0x1A4" tabindex="0" role="button" aria-label="Load example: Forcing a Replacement">Forcing a Replacement</li>
                 </ul>
             </div>
             
             <div class="reset-section">
-                <button id="reset-btn" class="reset-btn">Reset Simulation</button>
+                <button id="reset-btn" class="reset-btn" aria-label="Reset simulation to initial state">Reset Simulation</button>
             </div>
         </div>
         
@@ -267,21 +267,21 @@ LOAD R2, 0x1A4"
         </div>
         
         <!-- Right Panel: Event Log -->
-        <div class="panel right-panel">
-            <h2>Event Log</h2>
-            <div id="event-log" class="event-log"></div>
+        <div class="panel right-panel" role="complementary" aria-label="Event log panel">
+            <h2 id="event-log-heading">Event Log</h2>
+            <div id="event-log" class="event-log" role="log" aria-live="polite" aria-atomic="false" aria-labelledby="event-log-heading"></div>
         </div>
     </div>
     
     <!-- Confirmation Modal -->
-    <div id="reset-modal" class="modal" style="display: none;">
-        <div class="modal-overlay"></div>
+    <div id="reset-modal" class="modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-message">
+        <div class="modal-overlay" aria-hidden="true"></div>
         <div class="modal-content">
-            <h3 class="modal-title">Reset Simulation?</h3>
-            <p class="modal-message">This will clear all cache data, statistics, and event logs. This action cannot be undone.</p>
+            <h3 id="modal-title" class="modal-title">Reset Simulation?</h3>
+            <p id="modal-message" class="modal-message">This will clear all cache data, statistics, and event logs. This action cannot be undone.</p>
             <div class="modal-actions">
-                <button id="modal-cancel" class="modal-btn modal-cancel">Cancel</button>
-                <button id="modal-confirm" class="modal-btn modal-confirm">Reset</button>
+                <button id="modal-cancel" class="modal-btn modal-cancel" aria-label="Cancel reset">Cancel</button>
+                <button id="modal-confirm" class="modal-btn modal-confirm" aria-label="Confirm reset simulation">Reset</button>
             </div>
         </div>
     </div>
