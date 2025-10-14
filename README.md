@@ -2,6 +2,12 @@
 
 An interactive web-based visualizer for comparing cache mapping functions: Direct Mapped, N-Way Set-Associative, and Fully Associative.
 
+## 🚀 Live Demo
+
+**[View Live Application](https://roypriyanshu02.github.io/risc-cacheflow/)**
+
+[![Deploy Status](https://github.com/roypriyanshu02/risc-cacheflow/actions/workflows/deploy.yml/badge.svg)](https://github.com/roypriyanshu02/risc-cacheflow/actions/workflows/deploy.yml)
+
 ## Key Features
 - **Three Cache Mapping Modes**:
   - Direct Mapped: Each memory block maps to exactly one cache line
@@ -31,3 +37,27 @@ Built with vanilla HTML, CSS, and JavaScript. Served by Deno.
 3. Watch the animations demonstrate cache behavior
 4. Observe the address breakdown (for Direct and Set-Associative modes) showing how the address is divided into components
 5. Track statistics: hits, misses, and hit rate
+
+## Deployment
+
+The application is automatically deployed to GitHub Pages on every push to the `main` branch.
+
+### Initial Setup
+
+To enable GitHub Pages deployment for your repository:
+
+1. Go to your repository settings on GitHub
+2. Navigate to **Settings** → **Pages**
+3. Under **Build and deployment**:
+   - **Source**: Select "GitHub Actions"
+4. Push changes to the `main` branch to trigger the deployment workflow
+
+### Manual Build
+
+To build the static files locally:
+
+```bash
+deno task build
+```
+
+This creates a `dist/` directory with optimized static files ready for deployment.
