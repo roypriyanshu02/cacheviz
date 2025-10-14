@@ -3,6 +3,7 @@ const CACHE_SIZE = 8;
 const BLOCK_SIZE = 16;
 const MEMORY_BANKS = 4;
 const CELLS_PER_BANK = 4;
+const ASSOCIATIVITY = 2; // For N-Way Set-Associative mode
 
 // Animation speeds (in milliseconds)
 const ANIMATION_SPEED = {
@@ -28,7 +29,9 @@ const state = {
     misses: 0,
     isAnimating: false,
     nextReplacement: 0,
-    step: 0
+    step: 0,
+    mode: 'fully-associative', // 'direct', 'set-associative', 'fully-associative'
+    setReplacementCounters: [] // For N-way set-associative replacement policy
 };
 
 let tooltipElement = null;
@@ -105,6 +108,14 @@ function initializeCache() {
             lastAccess: null
         });
     }
+    
+    // Initialize set replacement counters for set-associative mode
+    const numSets = CACHE_SIZE / ASSOCIATIVITY;
+    state.setReplacementCounters = [];
+    for (let i = 0; i < numSets; i++) {
+        state.setReplacementCounters.push(0);
+    }
+    
     renderCacheLines();
 }
 
@@ -115,35 +126,124 @@ function parseAddress(addrStr) {
     return parseInt(cleaned, 16);
 }
 
-// Extract tag from address (for fully associative, entire address is tag)
+// Get offset bits (always log2(BLOCK_SIZE))
+function getOffset(address) {
+    return address % BLOCK_SIZE;
+}
+
+// Get number of offset bits
+function getOffsetBits() {
+    return Math.log2(BLOCK_SIZE);
+}
+
+// Get number of index bits for direct mapped
+function getIndexBits() {
+    return Math.log2(CACHE_SIZE);
+}
+
+// Get number of set bits for set-associative
+function getSetBits() {
+    const numSets = CACHE_SIZE / ASSOCIATIVITY;
+    return Math.log2(numSets);
+}
+
+// Get index for direct mapped cache
+function getIndex(address) {
+    const blockNumber = Math.floor(address / BLOCK_SIZE);
+    return blockNumber % CACHE_SIZE;
+}
+
+// Get set number for set-associative cache
+function getSet(address) {
+    const blockNumber = Math.floor(address / BLOCK_SIZE);
+    const numSets = CACHE_SIZE / ASSOCIATIVITY;
+    return blockNumber % numSets;
+}
+
+// Extract tag from address (varies by mode)
 function getTag(address) {
-    // Block align the address
-    return Math.floor(address / BLOCK_SIZE);
-}
-
-// Search cache for tag (fully associative)
-function searchCache(tag) {
-    for (let i = 0; i < state.cache.length; i++) {
-        if (state.cache[i].valid && state.cache[i].tag === tag) {
-            return i; // Cache hit - return line index
-        }
-    }
-    return -1; // Cache miss
-}
-
-// Find empty cache line or select victim for replacement
-function findVictimLine() {
-    // First, try to find an invalid line
-    for (let i = 0; i < state.cache.length; i++) {
-        if (!state.cache[i].valid) {
-            return i;
-        }
-    }
+    const blockNumber = Math.floor(address / BLOCK_SIZE);
     
-    // If all lines are valid, use round-robin replacement
-    const victim = state.nextReplacement;
-    state.nextReplacement = (state.nextReplacement + 1) % CACHE_SIZE;
-    return victim;
+    if (state.mode === 'direct') {
+        // Tag = block number / cache size
+        return Math.floor(blockNumber / CACHE_SIZE);
+    } else if (state.mode === 'set-associative') {
+        // Tag = block number / number of sets
+        const numSets = CACHE_SIZE / ASSOCIATIVITY;
+        return Math.floor(blockNumber / numSets);
+    } else {
+        // Fully associative - entire block number is tag
+        return blockNumber;
+    }
+}
+
+// Search cache for tag (mode-aware)
+function searchCache(tag, address) {
+    if (state.mode === 'direct') {
+        // Direct mapped: only one possible location
+        const index = getIndex(address);
+        if (state.cache[index].valid && state.cache[index].tag === tag) {
+            return index;
+        }
+        return -1;
+    } else if (state.mode === 'set-associative') {
+        // Set-associative: search within the set
+        const setNum = getSet(address);
+        const startIdx = setNum * ASSOCIATIVITY;
+        const endIdx = startIdx + ASSOCIATIVITY;
+        
+        for (let i = startIdx; i < endIdx; i++) {
+            if (state.cache[i].valid && state.cache[i].tag === tag) {
+                return i;
+            }
+        }
+        return -1;
+    } else {
+        // Fully associative: search all lines
+        for (let i = 0; i < state.cache.length; i++) {
+            if (state.cache[i].valid && state.cache[i].tag === tag) {
+                return i;
+            }
+        }
+        return -1;
+    }
+}
+
+// Find empty cache line or select victim for replacement (mode-aware)
+function findVictimLine(address) {
+    if (state.mode === 'direct') {
+        // Direct mapped: always replace at index
+        return getIndex(address);
+    } else if (state.mode === 'set-associative') {
+        // Set-associative: search within the set
+        const setNum = getSet(address);
+        const startIdx = setNum * ASSOCIATIVITY;
+        const endIdx = startIdx + ASSOCIATIVITY;
+        
+        // First, try to find an invalid line in the set
+        for (let i = startIdx; i < endIdx; i++) {
+            if (!state.cache[i].valid) {
+                return i;
+            }
+        }
+        
+        // If all lines in set are valid, use round-robin within the set
+        const victim = startIdx + state.setReplacementCounters[setNum];
+        state.setReplacementCounters[setNum] = (state.setReplacementCounters[setNum] + 1) % ASSOCIATIVITY;
+        return victim;
+    } else {
+        // Fully associative: search all lines
+        for (let i = 0; i < state.cache.length; i++) {
+            if (!state.cache[i].valid) {
+                return i;
+            }
+        }
+        
+        // If all lines are valid, use round-robin replacement
+        const victim = state.nextReplacement;
+        state.nextReplacement = (state.nextReplacement + 1) % CACHE_SIZE;
+        return victim;
+    }
 }
 
 // Update cache line
@@ -157,10 +257,97 @@ function updateCacheLine(lineIndex, tag, data) {
     renderCacheLine(lineIndex);
 }
 
+// Update address breakdown display
+function updateAddressBreakdown(address) {
+    const breakdownDiv = document.getElementById('address-breakdown');
+    
+    // Show/hide based on mode
+    if (state.mode === 'fully-associative') {
+        breakdownDiv.style.display = 'none';
+        return;
+    }
+    
+    breakdownDiv.style.display = 'block';
+    
+    const tag = getTag(address);
+    const offset = getOffset(address);
+    
+    document.getElementById('tag-value').textContent = `0x${tag.toString(16).toUpperCase()}`;
+    document.getElementById('offset-value').textContent = `0x${offset.toString(16).toUpperCase()}`;
+    
+    if (state.mode === 'direct') {
+        const index = getIndex(address);
+        document.getElementById('index-set-label').textContent = 'INDEX';
+        document.getElementById('index-set-value').textContent = index.toString();
+    } else if (state.mode === 'set-associative') {
+        const setNum = getSet(address);
+        document.getElementById('index-set-label').textContent = 'SET';
+        document.getElementById('index-set-value').textContent = setNum.toString();
+    }
+}
+
+// Clear address breakdown highlighting
+function clearAddressBreakdown() {
+    document.querySelectorAll('.bit-group').forEach(el => el.classList.remove('highlight'));
+}
+
+// Highlight specific part of address breakdown
+function highlightAddressBreakdown(part) {
+    clearAddressBreakdown();
+    if (part === 'index' || part === 'set') {
+        document.querySelector('.bit-index-set').classList.add('highlight');
+    } else if (part === 'tag') {
+        document.querySelector('.bit-tag').classList.add('highlight');
+    }
+}
+
+// Render set grouping backgrounds for set-associative mode
+function renderSetGrouping() {
+    const container = document.getElementById('cache-lines');
+    
+    // Remove existing set backgrounds
+    container.querySelectorAll('.cache-set-background, .cache-set-divider').forEach(el => el.remove());
+    
+    if (state.mode !== 'set-associative') {
+        return;
+    }
+    
+    const numSets = CACHE_SIZE / ASSOCIATIVITY;
+    
+    for (let setIdx = 0; setIdx < numSets; setIdx++) {
+        const y = setIdx * ASSOCIATIVITY * 56;
+        const height = ASSOCIATIVITY * 56 - 4; // Small gap between sets
+        
+        // Create background rectangle for the set
+        const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        bg.setAttribute('x', '-8');
+        bg.setAttribute('y', y);
+        bg.setAttribute('width', '246');
+        bg.setAttribute('height', height);
+        bg.classList.add('cache-set-background');
+        if (setIdx % 2 === 1) {
+            bg.classList.add('alternate');
+        }
+        container.insertBefore(bg, container.firstChild);
+        
+        // Add divider line between sets (except after last set)
+        if (setIdx < numSets - 1) {
+            const divider = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            divider.setAttribute('x1', '-8');
+            divider.setAttribute('y1', y + height + 2);
+            divider.setAttribute('x2', '238');
+            divider.setAttribute('y2', y + height + 2);
+            divider.classList.add('cache-set-divider');
+            container.appendChild(divider);
+        }
+    }
+}
+
 // Render all cache lines in SVG
 function renderCacheLines() {
     const container = document.getElementById('cache-lines');
     container.innerHTML = '';
+    renderSetGrouping();
     for (let i = 0; i < CACHE_SIZE; i++) {
         renderCacheLine(i);
     }
@@ -431,6 +618,44 @@ function clearMemoryHighlight() {
     });
 }
 
+// Highlight target cache line(s) based on mode
+function highlightTargetLines(address) {
+    return new Promise(resolve => {
+        if (state.mode === 'direct') {
+            // Highlight the single target line
+            const index = getIndex(address);
+            const group = document.getElementById(`cache-line-${index}`);
+            const rect = group.querySelector('.cache-line');
+            rect.classList.add('target-line');
+            setTimeout(() => {
+                rect.classList.remove('target-line');
+                resolve();
+            }, 1000);
+        } else if (state.mode === 'set-associative') {
+            // Highlight all lines in the target set
+            const setNum = getSet(address);
+            const startIdx = setNum * ASSOCIATIVITY;
+            const endIdx = startIdx + ASSOCIATIVITY;
+            
+            for (let i = startIdx; i < endIdx; i++) {
+                const group = document.getElementById(`cache-line-${i}`);
+                group.classList.add('in-set-highlight');
+            }
+            
+            setTimeout(() => {
+                for (let i = startIdx; i < endIdx; i++) {
+                    const group = document.getElementById(`cache-line-${i}`);
+                    group.classList.remove('in-set-highlight');
+                }
+                resolve();
+            }, 1000);
+        } else {
+            // Fully associative - no specific target highlighting
+            resolve();
+        }
+    });
+}
+
 async function animateCacheHit(lineIndex, address, actionVerb) {
     // Step 1: CPU Processing
     await animateCPUProcessing();
@@ -439,6 +664,14 @@ async function animateCacheHit(lineIndex, address, actionVerb) {
     activateWire('wire-cpu-cache-addr');
     await animatePulse('pulse-cpu-cache-req', 'wire-cpu-cache-addr', ANIMATION_SPEED.PULSE_TRAVEL, null, false);
     await new Promise(resolve => setTimeout(resolve, ANIMATION_SPEED.STEP_DELAY));
+    
+    // Step 2.5: For direct/set-associative, highlight index/set first
+    if (state.mode === 'direct' || state.mode === 'set-associative') {
+        highlightAddressBreakdown(state.mode === 'direct' ? 'index' : 'set');
+        await highlightTargetLines(address);
+        clearAddressBreakdown();
+        await new Promise(resolve => setTimeout(resolve, 200));
+    }
     
     // Step 3: Cache hit flash
     await flashCacheLine(lineIndex);
@@ -458,6 +691,14 @@ async function animateCacheMiss(lineIndex, address, tag, actionVerb, replacedTag
     activateWire('wire-cpu-cache-addr');
     await animatePulse('pulse-cpu-cache-req', 'wire-cpu-cache-addr', ANIMATION_SPEED.PULSE_TRAVEL, null, false);
     await new Promise(resolve => setTimeout(resolve, 200));
+    
+    // Step 2.5: For direct/set-associative, highlight index/set first
+    if (state.mode === 'direct' || state.mode === 'set-associative') {
+        highlightAddressBreakdown(state.mode === 'direct' ? 'index' : 'set');
+        await highlightTargetLines(address);
+        clearAddressBreakdown();
+        await new Promise(resolve => setTimeout(resolve, 200));
+    }
     
     // Step 3: Cache indicates MISS
     await shakeCacheOnMiss();
@@ -515,9 +756,13 @@ async function processMemoryAccess(operation, address) {
     document.getElementById('execute-btn').disabled = true;
     state.step += 1;
     clearMemoryHighlight();
+    
+    // Update address breakdown display
+    updateAddressBreakdown(address);
+    
     await triggerCpuProcessing();
     const tag = getTag(address);
-    const lineIndex = searchCache(tag);
+    const lineIndex = searchCache(tag, address);
     const actionVerb = operation === 'STORE' ? 'WRITE' : 'READ';
     if (lineIndex !== -1) {
         state.hits++;
@@ -529,7 +774,7 @@ async function processMemoryAccess(operation, address) {
         await animateCacheHit(lineIndex, address, actionVerb);
     } else {
         state.misses++;
-        const victimLine = findVictimLine();
+        const victimLine = findVictimLine(address);
         const replacedTag = state.cache[victimLine].valid ? state.cache[victimLine].tag : null;
         await animateCacheMiss(victimLine, address, tag, actionVerb, replacedTag);
     }
@@ -623,9 +868,43 @@ function resetSimulation() {
     updateStats();
     document.getElementById('event-log').innerHTML = '';
     addLogEntry('RESET -> Simulation ready', 'info');
+    addLogEntry(`MODE -> ${state.mode.replace('-', ' ').toUpperCase()}`, 'info');
     clearMemoryHighlight();
+    clearAddressBreakdown();
     hideTooltip();
     hideResetModal();
+}
+
+// Handle mode change
+function handleModeChange(newMode) {
+    if (state.isAnimating) {
+        addLogEntry('Cannot change mode during animation', 'info');
+        // Revert radio button
+        document.querySelector(`input[name="cache-mode"][value="${state.mode}"]`).checked = true;
+        return;
+    }
+    
+    state.mode = newMode;
+    
+    // Reset simulation when mode changes
+    state.hits = 0;
+    state.misses = 0;
+    state.nextReplacement = 0;
+    state.step = 0;
+    initializeCache();
+    initializeMemory();
+    updateStats();
+    document.getElementById('event-log').innerHTML = '';
+    addLogEntry('MODE CHANGED -> Simulation reset', 'info');
+    addLogEntry(`MODE -> ${state.mode.replace('-', ' ').toUpperCase()}`, 'info');
+    
+    if (state.mode === 'set-associative') {
+        addLogEntry(`CONFIG -> ${ASSOCIATIVITY}-Way Set-Associative`, 'info');
+    }
+    
+    clearMemoryHighlight();
+    clearAddressBreakdown();
+    hideTooltip();
 }
 
 // Event Listeners
@@ -636,6 +915,16 @@ document.addEventListener('DOMContentLoaded', () => {
     updateStats();
     addLogEntry('INIT -> RISC Cache-Flow ready', 'info');
     addLogEntry(`CONFIG -> ${CACHE_SIZE} lines, ${BLOCK_SIZE}B blocks`, 'info');
+    addLogEntry(`MODE -> ${state.mode.replace('-', ' ').toUpperCase()}`, 'info');
+    
+    // Mode change listeners
+    document.querySelectorAll('input[name="cache-mode"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                handleModeChange(e.target.value);
+            }
+        });
+    });
     
     // Execute button
     document.getElementById('execute-btn').addEventListener('click', () => {
