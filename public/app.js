@@ -5,13 +5,13 @@ const MEMORY_BANKS = 4;
 const CELLS_PER_BANK = 4;
 const ASSOCIATIVITY = 2; // For N-Way Set-Associative mode
 
-// Animation speeds (in milliseconds)
+// Animation speeds (in milliseconds) - optimized for snappier experience
 const ANIMATION_SPEED = {
-    PULSE_TRAVEL: 900,
-    CACHE_FLASH: 500,
-    MEMORY_DELAY: 450,
-    STEP_DELAY: 240,
-    CPU_PROCESS: 600
+    PULSE_TRAVEL: 600,  // Reduced from 900
+    CACHE_FLASH: 350,   // Reduced from 500
+    MEMORY_DELAY: 300,  // Reduced from 450
+    STEP_DELAY: 150,    // Reduced from 240
+    CPU_PROCESS: 400    // Reduced from 600
 };
 
 const LOG_ICONS = {
@@ -35,8 +35,27 @@ const state = {
 };
 
 let tooltipElement = null;
+let announcementElement = null;
 
-// Generate pseudo-random hex data
+// Screen reader announcement function
+function announceToScreenReader(message, priority = 'polite') {
+    if (!announcementElement) {
+        announcementElement = document.createElement('div');
+        announcementElement.setAttribute('aria-live', 'polite');
+        announcementElement.setAttribute('aria-atomic', 'true');
+        announcementElement.className = 'sr-only';
+        announcementElement.id = 'sr-announcements';
+        document.body.appendChild(announcementElement);
+    }
+    
+    announcementElement.setAttribute('aria-live', priority);
+    announcementElement.textContent = message;
+    
+    // Clear after a delay to allow re-announcement
+    setTimeout(() => {
+        announcementElement.textContent = '';
+    }, 1000);
+}
 function generateRandomHexData() {
     const hexValues = [
         'DEADBEEF', 'CAFEF00D', 'BAADF00D', 'FEEDFACE',
@@ -476,6 +495,11 @@ function addLogEntry(message, type = 'info') {
     while (log.children.length > 50) {
         log.removeChild(log.lastChild);
     }
+    
+    // Announce important events to screen readers
+    if (type === 'hit' || type === 'miss' || type === 'replace') {
+        announceToScreenReader(message, 'assertive');
+    }
 }
 
 function animatePulse(pulseId, pathId, duration, variant, reverse = false) {
@@ -789,7 +813,7 @@ function executeSingleCommand(command) {
     if (!trimmed) return null;
     
     // Parse commands like: LOAD R1, 0x1A4 or STORE R2, 0x2B0
-    const regex = /^(LOAD|STORE)\s+R\d+,\s*0x([0-9A-Fa-f]+)$/i;
+    const regex = /^(LOAD|STORE)\s+R(\d+),\s*0x([0-9A-Fa-f]+)$/i;
     const match = trimmed.match(regex);
     
     if (!match) {
@@ -797,9 +821,25 @@ function executeSingleCommand(command) {
     }
     
     const operation = match[1].toUpperCase();
-    const address = parseAddress(match[2]);
+    const registerNum = parseInt(match[2], 10);
+    const addressHex = match[3];
     
-    return { operation, address };
+    // Validate register number (reasonable range)
+    if (registerNum < 0 || registerNum > 31) {
+        throw new Error(`Invalid register number R${registerNum}. Must be between R0 and R31.`);
+    }
+    
+    // Validate address length (reasonable hex address)
+    if (addressHex.length < 1 || addressHex.length > 8) {
+        throw new Error(`Invalid address 0x${addressHex}. Must be 1-8 hex digits.`);
+    }
+    
+    try {
+        const address = parseAddress(addressHex);
+        return { operation, address };
+    } catch (error) {
+        throw new Error(`Invalid address 0x${addressHex}: ${error.message}`);
+    }
 }
 
 // Execute multi-line commands sequentially
@@ -820,19 +860,29 @@ async function executeCommand(commandText) {
     
     // Parse all commands first to validate
     const commands = [];
-    for (const line of lines) {
-        const parsed = executeSingleCommand(line);
-        if (!parsed) {
-            addLogEntry(`Invalid command: "${line}". Use: LOAD/STORE Rn, 0xADDR`, 'info');
+    for (let i = 0; i < lines.length; i++) {
+        try {
+            const parsed = executeSingleCommand(lines[i]);
+            if (!parsed) {
+                addLogEntry(`Invalid command on line ${i + 1}: "${lines[i]}". Use: LOAD/STORE Rn, 0xADDR`, 'info');
+                return;
+            }
+            commands.push(parsed);
+        } catch (error) {
+            addLogEntry(`Error on line ${i + 1}: ${error.message}`, 'info');
             return;
         }
-        commands.push(parsed);
     }
     
     // Execute commands sequentially
     for (let i = 0; i < commands.length; i++) {
         const { operation, address } = commands[i];
-        await processMemoryAccess(operation, address);
+        try {
+            await processMemoryAccess(operation, address);
+        } catch (error) {
+            addLogEntry(`Runtime error executing "${operation} R?, 0x${address.toString(16).toUpperCase()}": ${error.message}`, 'info');
+            return;
+        }
         
         // Add delay between commands if there are more
         if (i < commands.length - 1) {
