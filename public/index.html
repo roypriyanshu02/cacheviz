@@ -7,13 +7,14 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <div class="container" role="main" id="main-content">
         <!-- Left Panel: Control & Info -->
-        <div class="panel left-panel">
+        <div class="panel left-panel" role="complementary" aria-label="Cache control panel">
             <h1 class="title">RISC Cache-Flow</h1>
             
-            <div class="stats-section">
-                <h2>Statistics</h2>
+            <div class="stats-section" role="region" aria-labelledby="stats-heading">
+                <h2 id="stats-heading">Statistics</h2>
                 <div class="stat-item">
                     <span class="stat-label">Cache Hits:</span>
                     <span class="stat-value hit-count">0</span>
@@ -28,21 +29,23 @@
                 </div>
             </div>
             
-            <div class="mode-section">
-                <h2>Cache Mapping Mode</h2>
-                <div class="mode-options">
+            <div class="mode-section" role="region" aria-labelledby="mode-heading">
+                <h2 id="mode-heading">Cache Mapping Mode</h2>
+                <div class="mode-options" role="radiogroup" aria-labelledby="mode-heading">
                     <label class="mode-option">
-                        <input type="radio" name="cache-mode" value="direct" class="mode-radio">
+                        <input type="radio" name="cache-mode" value="direct" class="mode-radio" aria-describedby="direct-desc">
                         <span class="mode-label">Direct Mapped</span>
+                        <span class="mode-sublabel" id="direct-desc">Each address maps to one cache line</span>
                     </label>
                     <label class="mode-option">
-                        <input type="radio" name="cache-mode" value="set-associative" class="mode-radio">
+                        <input type="radio" name="cache-mode" value="set-associative" class="mode-radio" aria-describedby="set-desc">
                         <span class="mode-label">N-Way Set-Associative</span>
-                        <span class="mode-sublabel">(2-Way)</span>
+                        <span class="mode-sublabel" id="set-desc">(2-Way)</span>
                     </label>
                     <label class="mode-option">
-                        <input type="radio" name="cache-mode" value="fully-associative" class="mode-radio" checked>
+                        <input type="radio" name="cache-mode" value="fully-associative" class="mode-radio" checked aria-describedby="fully-desc">
                         <span class="mode-label">Fully Associative</span>
+                        <span class="mode-sublabel" id="fully-desc">Any address can map to any cache line</span>
                     </label>
                 </div>
             </div>
@@ -55,8 +58,11 @@
 LOAD R2, 0x1A4"
                     class="command-input"
                     rows="5"
+                    aria-label="Command input for cache operations"
+                    aria-describedby="command-help"
                 ></textarea>
-                <button id="execute-btn" class="execute-btn">Execute</button>
+                <div id="command-help" class="sr-only">Enter LOAD or STORE commands in the format: LOAD Rn, 0xADDR or STORE Rn, 0xADDR. Use Ctrl+Enter to execute.</div>
+                <button id="execute-btn" class="execute-btn" aria-label="Execute the entered cache commands">Execute</button>
                 
                 <!-- Address Breakdown Visualization -->
                 <div id="address-breakdown" class="address-breakdown" style="display: none;">
