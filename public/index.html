@@ -28,6 +28,25 @@
                 </div>
             </div>
             
+            <div class="mode-section">
+                <h2>Cache Mapping Mode</h2>
+                <div class="mode-options">
+                    <label class="mode-option">
+                        <input type="radio" name="cache-mode" value="direct" class="mode-radio">
+                        <span class="mode-label">Direct Mapped</span>
+                    </label>
+                    <label class="mode-option">
+                        <input type="radio" name="cache-mode" value="set-associative" class="mode-radio">
+                        <span class="mode-label">N-Way Set-Associative</span>
+                        <span class="mode-sublabel">(2-Way)</span>
+                    </label>
+                    <label class="mode-option">
+                        <input type="radio" name="cache-mode" value="fully-associative" class="mode-radio" checked>
+                        <span class="mode-label">Fully Associative</span>
+                    </label>
+                </div>
+            </div>
+            
             <div class="input-section">
                 <h2>Execute Command</h2>
                 <textarea 
@@ -38,6 +57,25 @@ LOAD R2, 0x1A4"
                     rows="5"
                 ></textarea>
                 <button id="execute-btn" class="execute-btn">Execute</button>
+                
+                <!-- Address Breakdown Visualization -->
+                <div id="address-breakdown" class="address-breakdown" style="display: none;">
+                    <div class="breakdown-title">Address Breakdown</div>
+                    <div class="breakdown-bits">
+                        <div class="bit-group bit-tag">
+                            <div class="bit-label">TAG</div>
+                            <div class="bit-value" id="tag-value">-</div>
+                        </div>
+                        <div class="bit-group bit-index-set">
+                            <div class="bit-label" id="index-set-label">INDEX</div>
+                            <div class="bit-value" id="index-set-value">-</div>
+                        </div>
+                        <div class="bit-group bit-offset">
+                            <div class="bit-label">OFFSET</div>
+                            <div class="bit-value" id="offset-value">-</div>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <div class="examples-section">
