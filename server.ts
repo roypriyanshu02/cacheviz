@@ -4,7 +4,7 @@ Deno.serve({
   port: PORT,
   handler: async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
-    
+
     try {
       // Serve index.html for root path
       if (url.pathname === "/" || url.pathname === "/index.html") {
@@ -13,7 +13,7 @@ Deno.serve({
           headers: { "Content-Type": "text/html" },
         });
       }
-      
+
       // Serve CSS files
       if (url.pathname === "/styles.css") {
         const content = await Deno.readTextFile("./public/styles.css");
@@ -21,7 +21,7 @@ Deno.serve({
           headers: { "Content-Type": "text/css" },
         });
       }
-      
+
       // Serve JavaScript files
       if (url.pathname === "/app.js") {
         const content = await Deno.readTextFile("./public/app.js");
@@ -29,7 +29,7 @@ Deno.serve({
           headers: { "Content-Type": "application/javascript" },
         });
       }
-      
+
       // 404 for other paths
       return new Response("Not Found", { status: 404 });
     } catch (error) {
