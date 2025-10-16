@@ -215,6 +215,13 @@ function getTag(address) {
   }
 }
 
+function scrollLeftPanelToTop() {
+  const leftPanel = document.querySelector(".left-panel");
+  if (leftPanel) {
+    leftPanel.scrollTo({ top: 0, behavior: "smooth" });
+  }
+}
+
 // Search cache for tag (mode-aware)
 function searchCache(tag, address) {
   if (state.mode === "direct") {
@@ -601,11 +608,13 @@ function animatePulse(pulseId, pathId, duration, variant, reverse = false) {
     const path = document.getElementById(pathId);
     const pathLength = path.getTotalLength();
     pulseGroup.style.display = "block";
+    pulseGroup.classList.add("active");
     if (variant) {
       head.classList.add(variant);
       tail.classList.add(variant);
     }
     const startTime = performance.now();
+    const tailOffset = 120;
     function step(currentTime) {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
@@ -616,8 +625,8 @@ function animatePulse(pulseId, pathId, duration, variant, reverse = false) {
         ? pathLength * (1 - eased)
         : pathLength * eased;
       const tailLength = reverse
-        ? Math.min(headLength + 60, pathLength)
-        : Math.max(headLength - 60, 0);
+        ? Math.min(headLength + tailOffset, pathLength)
+        : Math.max(headLength - tailOffset, 0);
       const headPoint = path.getPointAtLength(headLength);
       const tailPoint = path.getPointAtLength(tailLength);
       head.setAttribute("cx", headPoint.x);
@@ -626,14 +635,23 @@ function animatePulse(pulseId, pathId, duration, variant, reverse = false) {
       tail.setAttribute("y1", tailPoint.y);
       tail.setAttribute("x2", headPoint.x);
       tail.setAttribute("y2", headPoint.y);
+      const fadeProgress = reverse ? (1 - progress) : progress;
+      const tailOpacity = 0.85 - 0.45 * fadeProgress;
+      tail.style.opacity = Math.max(0.25, tailOpacity);
+      head.style.transform = `scale(${1.05 + 0.15 * (1 - progress)})`;
+      head.style.opacity = 0.95 + 0.05 * (1 - progress);
       if (progress < 1) {
         requestAnimationFrame(step);
       } else {
         pulseGroup.style.display = "none";
+        pulseGroup.classList.remove("active");
         if (variant) {
           head.classList.remove(variant);
           tail.classList.remove(variant);
         }
+        tail.style.opacity = "";
+        head.style.transform = "";
+        head.style.opacity = "";
         resolve();
       }
     }
@@ -789,7 +807,7 @@ async function animateCacheHit(lineIndex, address, actionVerb) {
     "pulse-cpu-cache-req",
     "wire-cpu-cache-addr",
     ANIMATION_SPEED.PULSE_TRAVEL,
-    null,
+    "address",
     false,
   );
   await new Promise((resolve) =>
@@ -822,7 +840,7 @@ async function animateCacheHit(lineIndex, address, actionVerb) {
     "pulse-cache-cpu-data",
     "wire-cpu-cache-data",
     ANIMATION_SPEED.PULSE_TRAVEL,
-    "hit",
+    "hit-return",
     true,
   );
 }
@@ -843,7 +861,7 @@ async function animateCacheMiss(
     "pulse-cpu-cache-req",
     "wire-cpu-cache-addr",
     ANIMATION_SPEED.PULSE_TRAVEL,
-    null,
+    "address",
     false,
   );
   await new Promise((resolve) => setTimeout(resolve, 200));
@@ -885,7 +903,7 @@ async function animateCacheMiss(
     "pulse-cache-memory-req",
     "wire-cache-memory-addr",
     ANIMATION_SPEED.PULSE_TRAVEL,
-    "miss",
+    "address",
     false,
   );
   await new Promise((resolve) => setTimeout(resolve, 200));
@@ -902,7 +920,7 @@ async function animateCacheMiss(
     "pulse-memory-cache-data",
     "wire-cache-memory-data",
     ANIMATION_SPEED.PULSE_TRAVEL,
-    "miss",
+    "miss-return",
     true,
   );
   await new Promise((resolve) => setTimeout(resolve, 200));
@@ -934,7 +952,7 @@ async function animateCacheMiss(
     "pulse-cache-cpu-data",
     "wire-cpu-cache-data",
     ANIMATION_SPEED.PULSE_TRAVEL,
-    "hit",
+    "hit-return",
     true,
   );
 }
@@ -1026,6 +1044,8 @@ async function executeCommand(commandText) {
 
   const trimmed = commandText.trim();
   if (!trimmed) return;
+
+  scrollLeftPanelToTop();
 
   // Split by newlines and filter empty lines
   const lines = trimmed.split("\n").map((line) => line.trim()).filter((line) =>
@@ -1252,6 +1272,25 @@ function handleModeChange(newMode) {
 
 // Event Listeners
 document.addEventListener("DOMContentLoaded", () => {
+  const defaultModeRadio = document.querySelector(
+    'input[name="cache-mode"]:checked',
+  );
+  if (defaultModeRadio) {
+    state.mode = defaultModeRadio.value;
+  } else {
+    state.mode = "fully-associative";
+    const fallback = document.querySelector(
+      'input[name="cache-mode"][value="fully-associative"]',
+    );
+    if (fallback) {
+      fallback.checked = true;
+    }
+  }
+
+  document.querySelectorAll('input[name="cache-mode"]').forEach((radio) => {
+    radio.checked = radio.value === state.mode;
+  });
+
   // Initialize
   initializeCache();
   initializeMemory();

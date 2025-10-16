@@ -138,9 +138,9 @@ h2 {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding: 0.875rem 0;
+  padding: 0.5rem 0;
   border-bottom: 1px solid var(--border-color);
-  gap: 0.375rem;
+  gap: 0.25rem;
 }
 
 .stat-item:last-child {
@@ -764,8 +764,26 @@ h2 {
   }
 }
 
+@keyframes evictFlash {
+  0% {
+    fill: var(--bg-panel);
+    stroke: var(--border-color);
+    stroke-width: 1.5;
+  }
+  45% {
+    fill: rgba(255, 193, 7, 0.6);
+    stroke: var(--warning);
+    stroke-width: 2.6;
+  }
+  100% {
+    fill: rgba(255, 193, 7, 0.15);
+    stroke: rgba(255, 193, 7, 0.45);
+    stroke-width: 1.5;
+  }
+}
+
 .cache-line.replacing {
-  animation: fadeOut 0.5s ease-in-out;
+  animation: evictFlash 0.45s ease-in-out;
 }
 
 .cache-line.updating {
@@ -839,34 +857,40 @@ h2 {
   display: none;
 }
 
+.pulse-head {
+  filter: url(#pulse-glow);
+  opacity: 0.96;
+  transform-origin: center;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.pulse-tail {
+  stroke-linecap: round;
+  stroke-width: 3;
+  opacity: 0.55;
+  filter: url(#pulse-glow);
+  transition: opacity 0.2s ease;
+}
+
 /* Request Packet (Address Bus) - Small and Quick */
 .pulse-head.request {
-  fill: #ffa726;
-  filter: url(#pulse-glow);
-  opacity: 0.95;
+  fill: #ffb652;
   r: 7;
 }
 
 .pulse-tail.request {
-  stroke: #ffa726;
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  opacity: 0.6;
+  stroke: rgba(255, 182, 82, 0.8);
 }
 
 /* Data Packet (Data Bus) - Larger and Brighter */
 .pulse-head.data {
   fill: var(--accent);
-  filter: url(#pulse-glow);
-  opacity: 1;
   r: 10;
 }
 
 .pulse-tail.data {
   stroke: var(--accent);
   stroke-width: 4;
-  stroke-linecap: round;
-  opacity: 0.7;
 }
 
 .pulse-head.hit {
@@ -891,6 +915,33 @@ h2 {
 
 .pulse-tail.replace {
   stroke: var(--color-replace);
+}
+
+.pulse-head.address {
+  fill: #ffc76b;
+}
+
+.pulse-tail.address {
+  stroke: rgba(255, 199, 107, 0.85);
+  stroke-width: 3.4;
+}
+
+.pulse-head.hit-return {
+  fill: #2fd86f;
+}
+
+.pulse-tail.hit-return {
+  stroke: rgba(47, 216, 111, 0.9);
+  stroke-width: 4.6;
+}
+
+.pulse-head.miss-return {
+  fill: #40c4ff;
+}
+
+.pulse-tail.miss-return {
+  stroke: rgba(64, 196, 255, 0.9);
+  stroke-width: 4.6;
 }
 
 /* Responsive adjustments */
