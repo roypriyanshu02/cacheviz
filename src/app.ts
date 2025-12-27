@@ -309,7 +309,7 @@ function addLogEntry(message: string, type: "hit" | "miss" | "replace" | "info" 
   `;
   dom.eventLog.insertBefore(entry, dom.eventLog.firstChild);
   while (dom.eventLog.children.length > 50) {
-    dom.eventLog.removeChild(dom.eventLog.lastChild);
+    dom.eventLog.removeChild(dom.eventLog.lastChild!);
   }
 
   if (["hit", "miss", "replace"].includes(type)) {
