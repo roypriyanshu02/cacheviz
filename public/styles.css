@@ -64,6 +64,78 @@ body {
   overflow: hidden;
 }
 
+/* Mobile Blocking Overlay */
+.mobile-block {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #1e6b28 0%, #0d3d12 100%);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-block-content {
+  text-align: center;
+  padding: 2rem;
+  max-width: 320px;
+  color: white;
+}
+
+.mobile-block-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  animation: pulse-icon 2s ease-in-out infinite;
+}
+
+@keyframes pulse-icon {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.mobile-block h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: white;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.mobile-block p {
+  font-size: 1rem;
+  line-height: 1.6;
+  opacity: 0.9;
+  margin-bottom: 0.75rem;
+}
+
+.mobile-block-hint {
+  font-size: 0.875rem;
+  opacity: 0.7;
+}
+
+/* Show mobile block and hide content on small screens */
+@media (max-width: 900px) {
+  .mobile-block {
+    display: flex;
+  }
+
+  .container {
+    display: none;
+  }
+}
+
+
 .container {
   display: flex;
   height: 100vh;
@@ -91,12 +163,19 @@ body {
 .center-panel {
   flex: 1 1 60%;
   min-width: 0;
-  padding: 2.5rem;
+  padding: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--bg-panel);
   overflow: hidden;
+}
+
+/* Canvas Visualization */
+#visualization {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .right-panel {
@@ -172,9 +251,11 @@ h2 {
   0% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.1);
   }
+
   100% {
     transform: scale(1);
   }
@@ -388,18 +469,23 @@ h2 {
 }
 
 @keyframes inputShake {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateX(0);
   }
+
   25% {
     transform: translateX(-4px);
   }
+
   75% {
     transform: translateX(4px);
   }
 }
 
-.execute-btn, .reset-btn {
+.execute-btn,
+.reset-btn {
   padding: 0.75rem 1.25rem;
   font-size: 0.875rem;
   font-weight: 600;
@@ -491,6 +577,7 @@ h2 {
     opacity: 0;
     transform: translateY(-8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -604,10 +691,12 @@ h2 {
     stroke-dasharray: 0 80;
     opacity: 0.3;
   }
+
   50% {
     stroke-dasharray: 40 40;
     opacity: 1;
   }
+
   100% {
     stroke-dasharray: 0 80;
     opacity: 0.3;
@@ -620,10 +709,12 @@ h2 {
     stroke-dashoffset: 0;
     opacity: 0.4;
   }
+
   50% {
     stroke-dasharray: 40 40;
     opacity: 1;
   }
+
   100% {
     stroke-dasharray: 0 80;
     opacity: 0.4;
@@ -685,9 +776,12 @@ h2 {
 }
 
 @keyframes targetPulse {
-  0%, 100% {
+
+  0%,
+  100% {
     stroke-opacity: 1;
   }
+
   50% {
     stroke-opacity: 0.5;
   }
@@ -731,10 +825,13 @@ h2 {
 }
 
 @keyframes hitFlash {
-  0%, 100% {
+
+  0%,
+  100% {
     fill: var(--bg-panel);
     stroke: var(--border-color);
   }
+
   50% {
     fill: rgba(40, 167, 69, 0.5);
     stroke: var(--color-hit);
@@ -747,6 +844,7 @@ h2 {
     opacity: 1;
     fill: var(--bg-panel);
   }
+
   100% {
     opacity: 0.2;
     fill: var(--bg-soft);
@@ -758,6 +856,7 @@ h2 {
     opacity: 0.2;
     transform: scale(0.95);
   }
+
   100% {
     opacity: 1;
     transform: scale(1);
@@ -770,11 +869,13 @@ h2 {
     stroke: var(--border-color);
     stroke-width: 1.5;
   }
+
   45% {
     fill: rgba(255, 193, 7, 0.6);
     stroke: var(--warning);
     stroke-width: 2.6;
   }
+
   100% {
     fill: rgba(255, 193, 7, 0.15);
     stroke: rgba(255, 193, 7, 0.45);
@@ -791,15 +892,20 @@ h2 {
 }
 
 @keyframes missShake {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   25% {
     opacity: 0.6;
   }
+
   50% {
     opacity: 1;
   }
+
   75% {
     opacity: 0.6;
   }
@@ -844,9 +950,12 @@ h2 {
 }
 
 @keyframes wireGlow {
-  0%, 100% {
+
+  0%,
+  100% {
     stroke-opacity: 0.5;
   }
+
   50% {
     stroke-opacity: 1;
   }
@@ -950,9 +1059,11 @@ h2 {
     padding: 1rem;
     gap: 0.75rem;
   }
+
   .panel {
     padding: 1.25rem;
   }
+
   .center-panel {
     padding: 2rem;
   }
@@ -962,13 +1073,16 @@ h2 {
   .container {
     padding: 0.75rem;
   }
+
   .left-panel {
     flex: 0 1 20%;
   }
+
   .center-panel {
     flex: 1 1 60%;
     padding: 1.5rem;
   }
+
   .right-panel {
     flex: 0 1 20%;
   }
@@ -979,6 +1093,7 @@ h2 {
     flex-direction: column;
     padding: 0.5rem;
   }
+
   .left-panel,
   .center-panel,
   .right-panel {
@@ -1028,6 +1143,7 @@ h2 {
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -1045,6 +1161,7 @@ h2 {
     transition: none !important;
   }
 }
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -1173,9 +1290,12 @@ h2 {
 }
 
 @keyframes cpuProcess {
-  0%, 100% {
+
+  0%,
+  100% {
     fill: #2e7d32;
   }
+
   50% {
     fill: #1e6b28;
   }
@@ -1186,9 +1306,12 @@ h2 {
 }
 
 @keyframes coreGlow {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 0.7;
   }
+
   50% {
     opacity: 1;
     filter: brightness(1.3);
@@ -1231,6 +1354,7 @@ h2 {
   white-space: nowrap;
   border: 0;
 }
+
 .modal {
   position: fixed;
   top: 0;
