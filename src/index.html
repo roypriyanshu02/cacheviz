@@ -19,7 +19,7 @@
     </div>
   </div>
 
-  <a href="#main-content" class="skip-link">Skip to main content</a>
+
   <div class="container" role="main" id="main-content">
     <!-- Left Panel: Control & Info -->
     <div class="panel left-panel" role="complementary" aria-label="Cache control panel">
@@ -28,15 +28,15 @@
       <div class="stats-section" role="region" aria-labelledby="stats-heading" aria-live="polite" aria-atomic="false">
         <h2 id="stats-heading">Statistics</h2>
         <div class="stat-item">
-          <span class="stat-label">Cache Hits:</span>
+          <span class="stat-label">✨ Cache Hits:</span>
           <span class="stat-value hit-count" aria-label="Cache hits count">0</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">Cache Misses:</span>
+          <span class="stat-label">💨 Cache Misses:</span>
           <span class="stat-value miss-count" aria-label="Cache misses count">0</span>
         </div>
         <div class="stat-item">
-          <span class="stat-label">Hit Rate:</span>
+          <span class="stat-label">📊 Hit Rate:</span>
           <span class="stat-value hit-rate" aria-label="Cache hit rate percentage">0%</span>
         </div>
       </div>
@@ -64,33 +64,34 @@
         <div class="mode-options" role="radiogroup" aria-labelledby="mode-heading">
           <label class="mode-option">
             <input type="radio" name="cache-mode" value="direct" class="mode-radio" aria-describedby="direct-desc">
-            <span class="mode-label">Direct Mapped</span>
-            <span class="mode-sublabel" id="direct-desc">Each address maps to one cache line</span>
+            <div class="mode-info">
+              <span class="mode-label">Direct Mapped</span>
+              <span class="mode-sublabel" id="direct-desc">Each address maps to one cache line</span>
+            </div>
           </label>
           <label class="mode-option">
             <input type="radio" name="cache-mode" value="set-associative" class="mode-radio"
               aria-describedby="set-desc">
-            <span class="mode-label">N-Way Set-Associative</span>
-            <span class="mode-sublabel" id="set-desc">(2-Way)</span>
+            <div class="mode-info">
+              <span class="mode-label">N-Way Set-Associative</span>
+              <span class="mode-sublabel" id="set-desc">(2-Way)</span>
+            </div>
           </label>
           <label class="mode-option">
             <input type="radio" name="cache-mode" value="fully-associative" class="mode-radio" checked
               aria-describedby="fully-desc">
-            <span class="mode-label">Fully Associative</span>
-            <span class="mode-sublabel" id="fully-desc">Any address can map to any cache line</span>
+            <div class="mode-info">
+              <span class="mode-label">Fully Associative</span>
+              <span class="mode-sublabel" id="fully-desc">Any address can map to any cache line</span>
+            </div>
           </label>
         </div>
       </div>
 
       <div class="input-section">
         <h2>Execute Command</h2>
-        <textarea id="command-input" placeholder="e.g., LOAD R1, 0x1A4
-LOAD R2, 0x1A4" class="command-input" rows="5" aria-label="Command input for cache operations"
-          aria-describedby="command-help"></textarea>
-        <div id="command-help" class="sr-only">
-          Enter LOAD or STORE commands in the format: LOAD Rn, 0xADDR or STORE
-          Rn, 0xADDR. Use Ctrl+Enter to execute.
-        </div>
+        <textarea id="command-input" placeholder="e.g., LOAD R1, 0x1A4&#10;LOAD R2, 0x1A4" class="command-input"
+          rows="5" aria-label="Command input for cache operations"></textarea>
         <button id="execute-btn" class="execute-btn" aria-label="Execute the entered cache commands">
           Execute
         </button>
@@ -128,10 +129,21 @@ LOAD R2, 0x1A4" class="command-input" rows="5" aria-label="Command input for cac
     </div>
 
     <!-- Right Panel: Event Log -->
-    <div class="panel right-panel" role="complementary" aria-label="Event log panel">
-      <h2 id="event-log-heading">Event Log</h2>
-      <div id="event-log" class="event-log" role="log" aria-live="polite" aria-atomic="false"
-        aria-labelledby="event-log-heading">
+    <div class="panel right-panel" id="right-panel" role="complementary" aria-label="Event log panel">
+      <div class="panel-header">
+        <h2 id="event-log-heading">Event Log</h2>
+        <button id="toggle-log" class="toggle-btn" aria-label="Toggle event log visibility">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="13 17 18 12 13 7"></polyline>
+            <polyline points="6 17 11 12 6 7"></polyline>
+          </svg>
+        </button>
+      </div>
+      <div id="event-log-container" class="log-container">
+        <div id="event-log" class="event-log" role="log" aria-live="polite" aria-atomic="false"
+          aria-labelledby="event-log-heading">
+        </div>
       </div>
     </div>
   </div>

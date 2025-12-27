@@ -3,48 +3,83 @@
 
 // Configuration matching original SVG layout
 const CONFIG = {
-  // Component positions (relative to canvas)
-  cpu: { x: 80, y: 225, width: 180, height: 160 },
-  cache: { x: 395, y: 35, width: 278, height: 532 },
-  memory: { x: 760, y: 35, width: 290, height: 530 },
+  // Component positions (relative to canvas) - centered and larger
+  cpu: { x: 40, y: 200, width: 180, height: 160 },
+  cache: { x: 320, y: 20, width: 280, height: 520 },
+  memory: { x: 680, y: 20, width: 280, height: 520 },
 
   // Cache lines
-  cacheLineHeight: 52,
-  cacheLineSpacing: 56,
-  cacheLineWidth: 230,
-  cacheLinesOffset: { x: 24, y: 62 },
+  cacheLineHeight: 50,
+  cacheLineSpacing: 54,
+  cacheLineWidth: 235,
+  cacheLinesOffset: { x: 22, y: 58 },
 
   // Memory banks
   memoryBankHeight: 95,
-  memoryBankSpacing: 110,
-  memoryCellWidth: 50,
+  memoryBankSpacing: 108,
+  memoryCellWidth: 52,
   memoryCellHeight: 65,
-  memoryBanksOffset: { x: 15, y: 52 },
+  memoryBanksOffset: { x: 10, y: 50 },
 
   // Wires
   wireWidth: 4,
   wireAddressWidth: 3.5,
-
-  // Colors
-  colors: {
-    componentColor: '#1e6b28',
-    componentBorder: '#14501d',
-    bgPanel: '#ffffff',
-    bgSoft: '#f1f3f5',
-    borderColor: '#dee2e6',
-    textPrimary: '#212529',
-    textSecondary: '#495057',
-    colorHit: '#28a745',
-    colorMiss: '#fd7e14',
-    colorReplace: '#6f42c1',
-    wireDefault: '#c8d0d8',
-    wireActive: '#ffa726',
-    cpuCore: '#2e7d32',
-    memoryChip: '#5a6268',
-    memoryCell: '#3d4347',
-    memoryContact: '#f4a261',
-  }
 };
+
+// Color palettes for dark and light modes
+const COLORS_DARK = {
+  componentColor: '#1e293b',
+  componentBorder: '#10b981',
+  bgPanel: '#334155',
+  bgSoft: '#1e293b',
+  bgApp: '#0f172a',
+  borderColor: '#475569',
+  textPrimary: '#f8fafc',
+  textSecondary: '#94a3b8',
+  colorHit: '#10b981',
+  colorMiss: '#f59e0b',
+  colorReplace: '#8b5cf6',
+  wireDefault: '#475569',
+  wireActive: '#10b981',
+  cpuCore: '#0f172a',
+  memoryChip: '#1e293b',
+  memoryCell: '#0f172a',
+  memoryContact: '#fbbf24',
+  accent: '#10b981',
+  accentGlow: 'rgba(16, 185, 129, 0.3)',
+  gridColor: 'rgba(148, 163, 184, 0.05)',
+};
+
+const COLORS_LIGHT = {
+  componentColor: '#e2e8f0',
+  componentBorder: '#059669',
+  bgPanel: '#ffffff',
+  bgSoft: '#f1f5f9',
+  bgApp: '#f8fafc',
+  borderColor: '#cbd5e1',
+  textPrimary: '#0f172a',
+  textSecondary: '#475569',
+  colorHit: '#059669',
+  colorMiss: '#d97706',
+  colorReplace: '#7c3aed',
+  wireDefault: '#94a3b8',
+  wireActive: '#059669',
+  cpuCore: '#cbd5e1',
+  memoryChip: '#e2e8f0',
+  memoryCell: '#f1f5f9',
+  memoryContact: '#d97706',
+  accent: '#059669',
+  accentGlow: 'rgba(5, 150, 105, 0.2)',
+  gridColor: 'rgba(71, 85, 105, 0.08)',
+};
+
+// Helper to get current color scheme
+function getColors() {
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+    return COLORS_LIGHT;
+  }
+  return COLORS_DARK;
+}
 
 // Animation state
 interface PulseState {
@@ -116,22 +151,25 @@ export class CanvasRenderer {
   // Animation frame
   private animationFrameId: number | null = null;
 
-  // Wire paths (simplified as line segments)
+  // Wire paths - properly aligned to component edges
   private wirePaths: { [key: string]: { start: { x: number; y: number }; end: { x: number; y: number } } } = {
-    'wire-cpu-cache-addr': { start: { x: 260, y: 271 }, end: { x: 395, y: 271 } },
-    'wire-cpu-cache-data': { start: { x: 260, y: 327 }, end: { x: 395, y: 327 } },
-    'wire-cache-memory-addr': { start: { x: 673, y: 271 }, end: { x: 760, y: 271 } },
-    'wire-cache-memory-data': { start: { x: 673, y: 327 }, end: { x: 760, y: 327 } },
+    'wire-cpu-cache-addr': { start: { x: 220, y: 269 }, end: { x: 320, y: 269 } },
+    'wire-cpu-cache-data': { start: { x: 220, y: 297 }, end: { x: 320, y: 297 } },
+    'wire-cache-memory-addr': { start: { x: 600, y: 239 }, end: { x: 680, y: 239 } },
+    'wire-cache-memory-data': { start: { x: 600, y: 292 }, end: { x: 680, y: 292 } },
   };
+
+  // Dynamic colors based on system preference
+  private colors = getColors();
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
     this.dpr = window.devicePixelRatio || 1;
 
-    // Set canvas size
-    this.width = 1100;
-    this.height = 680;
+    // Set canvas size - more compact to fill available space better
+    this.width = 1000;
+    this.height = 560;
     this.resizeCanvas();
 
     // Start animation loop
@@ -213,8 +251,16 @@ export class CanvasRenderer {
     const ctx = this.ctx;
     const rect = this.canvas.getBoundingClientRect();
 
+    // Update colors based on current system preference
+    this.colors = getColors();
+
+    // Check if resize needed
+    if (this.canvas.width !== rect.width * this.dpr || this.canvas.height !== rect.height * this.dpr) {
+      this.resizeCanvas();
+    }
+
     // Clear canvas
-    ctx.clearRect(0, 0, rect.width, rect.height);
+    ctx.clearRect(0, 0, this.canvas.width / this.dpr, this.canvas.height / this.dpr);
 
     // Scale to maintain aspect ratio
     const scale = Math.min(rect.width / this.width, rect.height / this.height);
@@ -224,6 +270,9 @@ export class CanvasRenderer {
     ctx.save();
     ctx.translate(offsetX, offsetY);
     ctx.scale(scale, scale);
+
+    // Draw background subtle grid or effect
+    this.drawBackgroundEffect();
 
     // Draw components
     this.drawWires();
@@ -235,56 +284,134 @@ export class CanvasRenderer {
     ctx.restore();
   }
 
+  private drawBackgroundEffect() {
+    const ctx = this.ctx;
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = this.colors.gridColor;
+    ctx.lineWidth = 1;
+
+    for (let i = 0; i < this.width; i += 40) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i, this.height);
+      ctx.stroke();
+    }
+    for (let j = 0; j < this.height; j += 40) {
+      ctx.beginPath();
+      ctx.moveTo(0, j);
+      ctx.lineTo(this.width, j);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1.0;
+  }
+
   // Draw CPU component
   private drawCPU() {
     const ctx = this.ctx;
     const { x, y, width, height } = CONFIG.cpu;
+    const isProcessing = this.highlights.cpuProcessing;
+    const time = Date.now() / 1000; // smoother time for animations
 
-    // CPU body
-    ctx.fillStyle = CONFIG.colors.componentColor;
-    this.roundRect(x, y, width, height, 20);
+    // Subtle breathing pulse effect when processing
+    const pulseIntensity = isProcessing ? 0.3 + Math.sin(time * 3) * 0.15 : 0;
+
+    // CPU Shadow - more subtle when processing
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+    ctx.shadowBlur = 20;
+    ctx.shadowOffsetY = 8;
+
+    // CPU body with gradient
+    const cpuGradient = ctx.createLinearGradient(x, y, x, y + height);
+    cpuGradient.addColorStop(0, this.colors.componentColor);
+    cpuGradient.addColorStop(1, this.colors.cpuCore);
+    ctx.fillStyle = cpuGradient;
+    ctx.strokeStyle = this.colors.accent;
+    ctx.lineWidth = 2;
+    this.roundRect(x, y, width, height, 16);
     ctx.fill();
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
 
-    // CPU pins (left side)
-    ctx.fillStyle = 'rgba(27, 94, 32, 0.45)';
+    // CPU pins (left side) - consistent color, don't change with state
     for (let i = 0; i < 5; i++) {
-      this.roundRect(x - 14, y + 18 + i * 28, 10, 16, 2);
+      ctx.fillStyle = this.colors.wireDefault;
+      this.roundRect(x - 12, y + 20 + i * 28, 8, 14, 2);
       ctx.fill();
     }
     // CPU pins (right side)
     for (let i = 0; i < 5; i++) {
-      this.roundRect(x + width + 4, y + 18 + i * 28, 10, 16, 2);
+      ctx.fillStyle = this.colors.wireDefault;
+      this.roundRect(x + width + 4, y + 20 + i * 28, 8, 14, 2);
       ctx.fill();
     }
 
-    // CPU core
-    const coreStyle = this.highlights.cpuProcessing
-      ? this.lerpColor(CONFIG.colors.cpuCore, '#1e6b28', Math.sin(Date.now() / 150) * 0.5 + 0.5)
-      : CONFIG.colors.cpuCore;
-    ctx.fillStyle = coreStyle;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+    // CPU core - subtle glow only when processing
+    const coreX = x + 40;
+    const coreY = y + 40;
+    const coreW = 100;
+    const coreH = 80;
+
+    // Draw a subtle glow ring around core when processing
+    if (isProcessing) {
+      ctx.save();
+      ctx.shadowColor = this.colors.accent;
+      ctx.shadowBlur = 12 + Math.sin(time * 4) * 4;
+      ctx.strokeStyle = this.colors.accent;
+      ctx.globalAlpha = pulseIntensity;
+      ctx.lineWidth = 3;
+      this.roundRect(coreX - 2, coreY - 2, coreW + 4, coreH + 4, 14);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Core background gradient
+    const coreGradient = ctx.createRadialGradient(
+      x + 90, y + 80, 10,
+      x + 90, y + 80, 60
+    );
+    coreGradient.addColorStop(0, this.colors.componentColor);
+    coreGradient.addColorStop(1, this.colors.cpuCore);
+    ctx.fillStyle = coreGradient;
+    ctx.strokeStyle = this.colors.borderColor;
     ctx.lineWidth = 2;
-    this.roundRect(x + 40, y + 40, 100, 80, 16);
+    this.roundRect(coreX, coreY, coreW, coreH, 12);
     ctx.fill();
     ctx.stroke();
 
-    // Core lines
-    const lineOpacity = this.highlights.cpuProcessing ? 1 : 0.7;
-    ctx.strokeStyle = `rgba(255, 255, 255, ${lineOpacity * 0.8})`;
-    ctx.lineWidth = 2;
-    ctx.lineCap = 'round';
+    // Animated core circuit lines - centered in core
+    const lineTime = Date.now() / 200;
     for (let i = 0; i < 3; i++) {
+      const lineY = coreY + 20 + i * 20;
+      const animOffset = isProcessing ? Math.sin(lineTime + i * 0.8) * 5 : 0;
+      const lineLen = isProcessing ? 50 + Math.sin(lineTime + i) * 8 : 60;
+      const startX = coreX + (coreW - lineLen) / 2 + animOffset;
+
+      // Line color - subtle pulse when processing
+      if (isProcessing) {
+        ctx.strokeStyle = this.colors.accent;
+        ctx.globalAlpha = 0.6 + Math.sin(lineTime + i * 1.2) * 0.3;
+      } else {
+        ctx.strokeStyle = this.colors.accent;
+        ctx.globalAlpha = 0.4;
+      }
+
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(x + 50, y + 60 + i * 20);
-      ctx.lineTo(x + 130, y + 60 + i * 20);
+      ctx.moveTo(startX, lineY);
+      ctx.lineTo(startX + lineLen, lineY);
       ctx.stroke();
     }
+    ctx.globalAlpha = 1;
 
-    // CPU label
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 18px Inter, sans-serif';
+    // CPU label - perfectly centered
+    ctx.fillStyle = this.colors.textPrimary;
+    ctx.font = 'bold 16px "Outfit", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('CPU', x + width / 2, y + height - 15);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('CPU', x + width / 2, y + height - 18);
+    ctx.textBaseline = 'alphabetic'; // reset
   }
 
   // Draw Cache component
@@ -292,19 +419,28 @@ export class CanvasRenderer {
     const ctx = this.ctx;
     const { x, y, width, height } = CONFIG.cache;
 
+    // Cache Shadow
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+    ctx.shadowBlur = 20;
+    ctx.shadowOffsetY = 10;
+
     // Cache body
-    ctx.fillStyle = CONFIG.colors.componentColor;
-    ctx.strokeStyle = CONFIG.colors.componentBorder;
+    ctx.fillStyle = this.colors.componentColor;
+    ctx.strokeStyle = this.colors.componentBorder;
     ctx.lineWidth = 2;
     this.roundRect(x, y, width, height, 20);
     ctx.fill();
     ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
 
-    // Cache label
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 18px Inter, sans-serif';
+    // Cache label - perfectly centered
+    ctx.fillStyle = this.colors.textPrimary;
+    ctx.font = 'bold 16px "Outfit", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Cache', x + width / 2, y + 36);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Cache', x + width / 2, y + 28);
+    ctx.textBaseline = 'alphabetic'; // reset
 
     // Draw set grouping backgrounds for set-associative mode
     if (this.mode === 'set-associative') {
@@ -316,22 +452,20 @@ export class CanvasRenderer {
         const setY = linesY + setIdx * this.associativity * CONFIG.cacheLineSpacing;
         const setHeight = this.associativity * CONFIG.cacheLineSpacing - 4;
 
-        ctx.fillStyle = setIdx % 2 === 0 ? 'rgba(27, 94, 32, 0.03)' : 'rgba(27, 94, 32, 0.08)';
-        this.roundRect(linesX - 8, setY, CONFIG.cacheLineWidth + 16, setHeight, 8);
+        ctx.fillStyle = setIdx % 2 === 0 ? 'rgba(148, 163, 184, 0.05)' : 'rgba(148, 163, 184, 0.1)';
+        this.roundRect(linesX - 8, setY, CONFIG.cacheLineWidth + 16, setHeight, 12);
         ctx.fill();
 
         // Set divider
         if (setIdx < numSets - 1) {
-          ctx.strokeStyle = CONFIG.colors.componentColor;
-          ctx.lineWidth = 2;
-          ctx.setLineDash([5, 3]);
-          ctx.globalAlpha = 0.4;
+          ctx.strokeStyle = this.colors.borderColor;
+          ctx.lineWidth = 1;
+          ctx.setLineDash([5, 5]);
           ctx.beginPath();
           ctx.moveTo(linesX - 8, setY + setHeight + 2);
           ctx.lineTo(linesX + CONFIG.cacheLineWidth + 8, setY + setHeight + 2);
           ctx.stroke();
           ctx.setLineDash([]);
-          ctx.globalAlpha = 1;
         }
       }
     }
@@ -350,35 +484,31 @@ export class CanvasRenderer {
     const height = CONFIG.cacheLineHeight;
 
     // Determine line style based on state
-    let fillColor = line.valid ? CONFIG.colors.bgPanel : CONFIG.colors.bgSoft;
-    let strokeColor = CONFIG.colors.borderColor;
-    let strokeWidth = 1.5;
+    let fillColor = line.valid ? this.colors.bgPanel : this.colors.cpuCore;
+    let strokeColor = this.colors.borderColor;
+    let strokeWidth = 1;
     let translateX = 0;
 
     // Check for highlights/animations
     if (this.highlights.cacheLineFlash === index) {
-      const t = Math.sin(Date.now() / 100) * 0.5 + 0.5;
-      fillColor = this.lerpColor(CONFIG.colors.bgPanel, 'rgba(40, 167, 69, 0.5)', t);
-      strokeColor = CONFIG.colors.colorHit;
-      strokeWidth = 2.5;
+      fillColor = this.colors.accentGlow;
+      strokeColor = this.colors.colorHit;
+      strokeWidth = 2;
     } else if (this.highlights.cacheLineReplacing === index) {
-      fillColor = 'rgba(255, 193, 7, 0.4)';
-      strokeColor = '#ffc107';
-      strokeWidth = 2.5;
-    } else if (this.highlights.cacheLineUpdating === index) {
-      fillColor = CONFIG.colors.bgPanel;
+      fillColor = 'rgba(245, 158, 11, 0.2)';
+      strokeColor = this.colors.colorMiss;
+      strokeWidth = 2;
     } else if (this.highlights.cacheLineTarget === index) {
-      strokeColor = CONFIG.colors.colorMiss;
-      strokeWidth = 2.5;
-    } else if (this.highlights.cacheSetHighlight?.includes(index)) {
-      strokeColor = CONFIG.colors.componentColor;
+      strokeColor = '#38bdf8';
       strokeWidth = 2;
     }
 
     // Hover effect
     if (this.hoveredCacheLine === index && line.valid) {
-      strokeColor = CONFIG.colors.componentColor;
+      strokeColor = this.colors.colorHit;
       translateX = 4;
+      ctx.shadowColor = this.colors.accentGlow;
+      ctx.shadowBlur = 10;
     }
 
     // Draw line background
@@ -387,46 +517,45 @@ export class CanvasRenderer {
     ctx.lineWidth = strokeWidth;
 
     if (!line.valid) {
-      ctx.setLineDash([4, 3]);
+      ctx.setLineDash([4, 4]);
     }
 
-    this.roundRect(x + translateX, y, width, height, 6);
+    this.roundRect(x + translateX, y, width, height, 8);
     ctx.fill();
     ctx.stroke();
     ctx.setLineDash([]);
+    ctx.shadowBlur = 0;
 
     // Draw line content
     const tagStr = line.valid ? `0x${line.tag?.toString(16).toUpperCase()}` : '-';
-    let displayData = line.valid ? (line.data || '-') : '-';
+    let displayData = line.valid ? (line.data || '-') : 'Empty';
     if (displayData.length > 18) displayData = displayData.substring(0, 18) + '…';
-    const validStr = line.valid ? 'V: 1' : 'V: 0';
+    const validBit = line.valid ? '1' : '0';
 
     // Line index label
-    ctx.fillStyle = CONFIG.colors.textSecondary;
-    ctx.font = 'bold 10px Inter, sans-serif';
+    ctx.font = '700 10px "Outfit", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`L${index}`, x + translateX + 10, y + 20);
+    ctx.fillStyle = this.colors.textSecondary;
+    ctx.fillText(`L${index}`, x + translateX + 10, y + 18);
 
     // Valid bit
-    ctx.fillStyle = line.valid ? CONFIG.colors.colorHit : CONFIG.colors.textSecondary;
-    ctx.font = 'bold 11px Monaco, Menlo, monospace';
-    ctx.fillText(validStr, x + translateX + 10, y + 38);
+    ctx.fillStyle = line.valid ? this.colors.colorHit : this.colors.textSecondary;
+    ctx.fillText(`V: ${validBit}`, x + translateX + 10, y + 36);
 
-    // TAG label and value
-    ctx.fillStyle = CONFIG.colors.textSecondary;
-    ctx.font = 'bold 10px Inter, sans-serif';
-    ctx.fillText('TAG', x + translateX + 50, y + 20);
-    ctx.fillStyle = CONFIG.colors.textPrimary;
-    ctx.font = 'bold 13px Monaco, Menlo, monospace';
-    ctx.fillText(tagStr, x + translateX + 50, y + 38);
+    // TAG
+    ctx.fillStyle = this.colors.textSecondary;
+    ctx.fillText('TAG', x + translateX + 50, y + 18);
+    ctx.fillStyle = line.valid ? this.colors.textPrimary : this.colors.textSecondary;
+    ctx.font = '700 12px "JetBrains Mono", monospace';
+    ctx.fillText(tagStr, x + translateX + 50, y + 36);
 
-    // DATA label and value
-    ctx.fillStyle = CONFIG.colors.textSecondary;
-    ctx.font = 'bold 10px Inter, sans-serif';
-    ctx.fillText('DATA', x + translateX + 115, y + 20);
-    ctx.fillStyle = CONFIG.colors.textPrimary;
-    ctx.font = 'bold 11px Monaco, Menlo, monospace';
-    ctx.fillText(displayData, x + translateX + 115, y + 38);
+    // DATA
+    ctx.font = '700 10px "Outfit", sans-serif';
+    ctx.fillStyle = this.colors.textSecondary;
+    ctx.fillText('DATA', x + translateX + 115, y + 18);
+    ctx.fillStyle = line.valid ? this.colors.textPrimary : this.colors.textSecondary;
+    ctx.font = '500 11px "JetBrains Mono", monospace';
+    ctx.fillText(displayData, x + translateX + 115, y + 36);
   }
 
   // Draw Memory component
@@ -434,44 +563,61 @@ export class CanvasRenderer {
     const ctx = this.ctx;
     const { x, y, width, height } = CONFIG.memory;
 
+    // Memory Shadow
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+    ctx.shadowBlur = 20;
+    ctx.shadowOffsetY = 10;
+
     // Memory body (RAM PCB)
-    ctx.fillStyle = CONFIG.colors.componentColor;
-    ctx.strokeStyle = CONFIG.colors.componentBorder;
+    ctx.fillStyle = this.colors.componentColor;
+    ctx.strokeStyle = this.colors.componentBorder;
     ctx.lineWidth = 2.5;
     this.roundRect(x, y, width, height, 12);
     ctx.fill();
     ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
 
-    // Memory label
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 18px Inter, sans-serif';
+    // Memory label - perfectly centered
+    ctx.fillStyle = this.colors.textPrimary;
+    ctx.font = 'bold 16px "Outfit", sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Main Memory', x + width / 2, y + 36);
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Main Memory', x + width / 2, y + 28);
+    ctx.textBaseline = 'alphabetic'; // reset
 
-    // Circuit traces
-    ctx.strokeStyle = 'rgba(27, 94, 32, 0.35)';
-    ctx.lineWidth = 1.5;
-    ctx.lineCap = 'round';
-    const traceYs = [25, 155, 285, 415, 505];
-    traceYs.forEach(traceY => {
-      ctx.beginPath();
-      ctx.moveTo(x + 15, y + traceY);
-      ctx.lineTo(x + 275, y + traceY);
-      ctx.stroke();
-    });
+    // Bottom notch (centered)
+    const notchWidth = 36;
+    const notchX = x + (width - notchWidth) / 2;
+    ctx.fillStyle = this.colors.bgApp;
+    ctx.fillRect(notchX, y + height - 8, notchWidth, 8);
 
-    // Bottom notch
-    ctx.fillStyle = '#f8f9fa';
-    ctx.fillRect(x + 125, y + height - 8, 40, 8);
+    // Gold contacts - perfectly evenly spaced
+    ctx.fillStyle = this.colors.memoryContact;
+    const contactWidth = 12;
+    const contactHeight = 12;
+    const leftPadding = 16;
+    const rightPadding = 16;
+    const availableWidth = width - leftPadding - rightPadding;
+    const contactsLeft = 7;  // contacts on left of notch
+    const contactsRight = 7; // contacts on right of notch
 
-    // Gold contacts
-    ctx.fillStyle = CONFIG.colors.memoryContact;
-    ctx.strokeStyle = '#d18e54';
-    ctx.lineWidth = 0.5;
-    const contactXs = [20, 35, 50, 65, 80, 95, 110, 170, 185, 200, 215, 230, 245, 260];
-    contactXs.forEach(cx => {
-      ctx.fillRect(x + cx, y + height - 10, 8, 10);
-    });
+    // Left side contacts
+    const leftAreaWidth = (width / 2) - (notchWidth / 2) - leftPadding - 4;
+    const leftSpacing = leftAreaWidth / contactsLeft;
+    for (let i = 0; i < contactsLeft; i++) {
+      const cx = x + leftPadding + i * leftSpacing + leftSpacing / 2 - contactWidth / 2;
+      ctx.fillRect(cx, y + height - contactHeight, contactWidth, contactHeight);
+    }
+
+    // Right side contacts
+    const rightStartX = x + width / 2 + notchWidth / 2 + 4;
+    const rightAreaWidth = (width / 2) - (notchWidth / 2) - rightPadding - 4;
+    const rightSpacing = rightAreaWidth / contactsRight;
+    for (let i = 0; i < contactsRight; i++) {
+      const cx = rightStartX + i * rightSpacing + rightSpacing / 2 - contactWidth / 2;
+      ctx.fillRect(cx, y + height - contactHeight, contactWidth, contactHeight);
+    }
 
     // Memory banks
     const banksX = x + CONFIG.memoryBanksOffset.x;
@@ -482,9 +628,9 @@ export class CanvasRenderer {
       const isHighlighted = this.highlights.memoryBankHighlight === bankIdx;
 
       // Memory chip
-      ctx.fillStyle = isHighlighted ? '#6c757d' : CONFIG.colors.memoryChip;
-      ctx.strokeStyle = isHighlighted ? CONFIG.colors.componentColor : '#3d4347';
-      ctx.lineWidth = isHighlighted ? 2.5 : 2;
+      ctx.fillStyle = isHighlighted ? this.colors.borderColor : this.colors.memoryChip;
+      ctx.strokeStyle = isHighlighted ? this.colors.colorHit : this.colors.borderColor;
+      ctx.lineWidth = isHighlighted ? 2 : 1;
       this.roundRect(banksX, bankY, 260, CONFIG.memoryBankHeight, 8);
       ctx.fill();
       ctx.stroke();
@@ -495,10 +641,10 @@ export class CanvasRenderer {
         const cellY = bankY + 15;
         const isHighlightedCell = isHighlighted && this.highlights.memoryCellHighlight === cellIdx;
 
-        ctx.fillStyle = isHighlightedCell ? 'rgba(27, 94, 32, 0.18)' : CONFIG.colors.memoryCell;
-        ctx.strokeStyle = isHighlightedCell ? CONFIG.colors.componentColor : '#2a2e32';
-        ctx.lineWidth = isHighlightedCell ? 2 : 1.5;
-        this.roundRect(cellX, cellY, CONFIG.memoryCellWidth, CONFIG.memoryCellHeight, 4);
+        ctx.fillStyle = isHighlightedCell ? this.colors.accentGlow : this.colors.memoryCell;
+        ctx.strokeStyle = isHighlightedCell ? this.colors.colorHit : this.colors.bgPanel;
+        ctx.lineWidth = isHighlightedCell ? 1.5 : 1;
+        this.roundRect(cellX, cellY, CONFIG.memoryCellWidth, CONFIG.memoryCellHeight, 6);
         ctx.fill();
         ctx.stroke();
 
@@ -506,46 +652,91 @@ export class CanvasRenderer {
         const blockIndex = bankIdx * 4 + cellIdx;
         if (blockIndex < this.memoryBlocks.length) {
           const data = this.memoryBlocks[blockIndex].data.substring(0, 6);
-          ctx.fillStyle = '#e8f5e9';
-          ctx.font = 'bold 11px Monaco, Menlo, monospace';
+          ctx.fillStyle = this.colors.textPrimary;
+          ctx.font = '700 11px "JetBrains Mono", monospace';
           ctx.textAlign = 'center';
           ctx.fillText(data, cellX + 25, cellY + 38);
-
-          ctx.fillStyle = '#a0a8ad';
-          ctx.globalAlpha = 0.7;
-          ctx.font = '500 8px Monaco, Menlo, monospace';
-          ctx.fillText('(data)', cellX + 25, cellY + 52);
-          ctx.globalAlpha = 1;
         }
       }
     }
   }
 
-  // Draw wires
+  // Draw wires with animated dashes (bidirectional - thicker and more visible)
   private drawWires() {
     const ctx = this.ctx;
+    const time = Date.now() / 40;
 
     Object.entries(this.wirePaths).forEach(([wireId, path]) => {
       const isActive = this.highlights.wireActive[wireId];
       const isAddress = wireId.includes('addr');
 
+      // Draw outer glow when active
+      if (isActive) {
+        ctx.strokeStyle = isAddress ? 'rgba(251, 191, 36, 0.3)' : this.colors.accentGlow;
+        ctx.lineWidth = 20;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(path.start.x, path.start.y);
+        ctx.lineTo(path.end.x, path.end.y);
+        ctx.stroke();
+      }
+
+      // Base wire (thicker background)
       ctx.strokeStyle = isActive
-        ? (isAddress ? '#ffa726' : CONFIG.colors.componentColor)
-        : CONFIG.colors.wireDefault;
-      ctx.lineWidth = isAddress ? CONFIG.wireAddressWidth : CONFIG.wireWidth;
+        ? (isAddress ? 'rgba(251, 191, 36, 0.5)' : this.colors.accentGlow)
+        : this.colors.bgPanel;
+      ctx.lineWidth = isAddress ? 6 : 7;
+      ctx.lineCap = 'round';
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(path.start.x, path.start.y);
+      ctx.lineTo(path.end.x, path.end.y);
+      ctx.stroke();
+
+      // Main wire with animation
+      ctx.strokeStyle = isActive
+        ? (isAddress ? '#fbbf24' : this.colors.colorHit)
+        : this.colors.wireDefault;
+      ctx.lineWidth = isAddress ? 4 : 5;
       ctx.lineCap = 'round';
 
       if (isActive) {
-        ctx.shadowColor = isAddress ? '#ffa726' : CONFIG.colors.componentColor;
-        ctx.shadowBlur = 10;
+        // Animated dash pattern - faster and more dynamic
+        ctx.setLineDash([12, 10]);
+        ctx.lineDashOffset = -time;
+      } else {
+        ctx.setLineDash([]);
       }
 
       ctx.beginPath();
       ctx.moveTo(path.start.x, path.start.y);
       ctx.lineTo(path.end.x, path.end.y);
       ctx.stroke();
+      ctx.setLineDash([]);
 
-      ctx.shadowBlur = 0;
+      // Draw bidirectional arrows (two small triangles pointing opposite directions)
+      const midX = (path.start.x + path.end.x) / 2;
+      const midY = (path.start.y + path.end.y) / 2;
+      const arrowSize = 6;
+      const arrowGap = 8;
+
+      ctx.fillStyle = isActive ? (isAddress ? '#fbbf24' : this.colors.colorHit) : this.colors.wireDefault;
+
+      // Right arrow (pointing right)
+      ctx.beginPath();
+      ctx.moveTo(midX + arrowGap, midY);
+      ctx.lineTo(midX + arrowGap - arrowSize, midY - arrowSize / 2);
+      ctx.lineTo(midX + arrowGap - arrowSize, midY + arrowSize / 2);
+      ctx.closePath();
+      ctx.fill();
+
+      // Left arrow (pointing left)
+      ctx.beginPath();
+      ctx.moveTo(midX - arrowGap, midY);
+      ctx.lineTo(midX - arrowGap + arrowSize, midY - arrowSize / 2);
+      ctx.lineTo(midX - arrowGap + arrowSize, midY + arrowSize / 2);
+      ctx.closePath();
+      ctx.fill();
     });
   }
 
@@ -578,40 +769,40 @@ export class CanvasRenderer {
       const tailY = path.start.y + (path.end.y - path.start.y) * tailT;
 
       // Determine colors based on variant
-      let headColor = '#ffc76b';
-      let tailColor = 'rgba(255, 199, 107, 0.85)';
+      let headColor = '#fbbf24'; // Warning orange/yellow
+      let tailColor = 'rgba(251, 191, 36, 0.4)';
       let headRadius = 7;
 
       if (pulse.variant === 'hit-return') {
-        headColor = '#2fd86f';
-        tailColor = 'rgba(47, 216, 111, 0.9)';
-        headRadius = 10;
+        headColor = '#10b981'; // Emerald green
+        tailColor = 'rgba(16, 185, 129, 0.4)';
+        headRadius = 9;
       } else if (pulse.variant === 'miss-return') {
-        headColor = '#40c4ff';
-        tailColor = 'rgba(64, 196, 255, 0.9)';
-        headRadius = 10;
+        headColor = '#0ea5e9'; // Sky blue
+        tailColor = 'rgba(14, 165, 233, 0.4)';
+        headRadius = 9;
       } else if (pulse.variant === 'address') {
-        headColor = '#ffc76b';
-        tailColor = 'rgba(255, 199, 107, 0.85)';
+        headColor = '#f59e0b'; // Amber
+        tailColor = 'rgba(245, 158, 11, 0.4)';
+        headRadius = 6;
       }
 
-      // Draw tail
+      // Draw tail glow
+      ctx.shadowColor = headColor;
+      ctx.shadowBlur = headRadius * 1.5;
       ctx.strokeStyle = tailColor;
-      ctx.lineWidth = pulse.variant?.includes('return') ? 4.6 : 3;
+      ctx.lineWidth = pulse.variant?.includes('return') ? 5 : 3;
       ctx.lineCap = 'round';
-      ctx.globalAlpha = 0.7 - 0.3 * progress;
       ctx.beginPath();
       ctx.moveTo(tailX, tailY);
       ctx.lineTo(headX, headY);
       ctx.stroke();
-      ctx.globalAlpha = 1;
 
-      // Draw head with glow
-      ctx.shadowColor = headColor;
-      ctx.shadowBlur = 12;
+      // Draw head with intense glow
+      ctx.shadowBlur = headRadius * 2;
       ctx.fillStyle = headColor;
       ctx.beginPath();
-      ctx.arc(headX, headY, headRadius * (1.05 + 0.15 * (1 - progress)), 0, Math.PI * 2);
+      ctx.arc(headX, headY, headRadius * (1.1 + Math.sin(Date.now() / 100) * 0.1), 0, Math.PI * 2);
       ctx.fill();
       ctx.shadowBlur = 0;
 

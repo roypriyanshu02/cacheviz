@@ -81,6 +81,8 @@ const dom = {
   resetModal: document.getElementById("reset-modal"),
   modalCancel: document.getElementById("modal-cancel"),
   modalConfirm: document.getElementById("modal-confirm"),
+  rightPanel: document.getElementById("right-panel"),
+  toggleLog: document.getElementById("toggle-log"),
 };
 
 let tooltipElement: HTMLElement | null = null;
@@ -682,5 +684,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   dom.canvas?.addEventListener("mouseleave", () => {
     hideTooltip();
+  });
+
+  // Handle Event Log Toggle
+  dom.toggleLog?.addEventListener("click", () => {
+    dom.rightPanel?.classList.toggle("collapsed");
+  });
+
+  // Handle Window Resize
+  window.addEventListener("resize", () => {
+    // CanvasRenderer handles its own resize via its render loop/BoundingClientRect
+    // but we can force it if needed.
   });
 });
