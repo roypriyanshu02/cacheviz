@@ -6,10 +6,11 @@
   "scripts": {
     "start": "bun run src/server.ts",
     "dev": "bun run build && (bun build src/app.ts --outdir dist --watch & bun run --watch src/server.ts)",
-    "build": "rm -rf dist && mkdir -p dist && bun build src/app.ts --outdir dist && cp src/index.html src/styles.css dist/"
+    "build": "rm -rf dist && mkdir -p dist && bun build src/app.ts --outdir dist --minify && cp src/index.html dist/ && bunx lightningcss --minify src/styles.css -o dist/styles.css"
   },
   "devDependencies": {
     "bun-types": "latest",
+    "lightningcss-cli": "^1.30.2",
     "typescript": "latest"
   },
   "keywords": [

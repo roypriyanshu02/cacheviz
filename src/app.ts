@@ -298,23 +298,26 @@ function updateStats() {
   }
 }
 
+// Reusable template for log entries (avoids innerHTML parsing overhead)
+const logEntryTemplate = document.createElement('template');
+logEntryTemplate.innerHTML = `<div class="log-entry"><div class="log-entry-icon"></div><div class="log-text"><div class="log-message"></div><div class="log-timestamp"></div></div></div>`;
+
 function addLogEntry(message: string, type: "hit" | "miss" | "replace" | "info" = "info") {
   if (!dom.eventLog) return;
-  const entry = document.createElement("div");
-  entry.className = `log-entry ${type}`;
-  entry.innerHTML = `
-    <div class="log-entry-icon">${LOG_ICONS[type]}</div>
-    <div class="log-text">
-        <div class="log-message">${message}</div>
-        <div class="log-timestamp">${new Date().toLocaleTimeString()}</div>
-    </div>
-  `;
+  const entry = logEntryTemplate.content.cloneNode(true) as DocumentFragment;
+  const entryDiv = entry.firstElementChild as HTMLElement;
+  entryDiv.classList.add(type);
+  (entryDiv.querySelector('.log-entry-icon') as HTMLElement).textContent = LOG_ICONS[type];
+  (entryDiv.querySelector('.log-message') as HTMLElement).textContent = message;
+  (entryDiv.querySelector('.log-timestamp') as HTMLElement).textContent = new Date().toLocaleTimeString();
   dom.eventLog.insertBefore(entry, dom.eventLog.firstChild);
-  while (dom.eventLog.children.length > 50) {
-    dom.eventLog.removeChild(dom.eventLog.lastChild!);
+
+  // Limit log entries
+  if (dom.eventLog.children.length > 50) {
+    dom.eventLog.lastElementChild?.remove();
   }
 
-  if (["hit", "miss", "replace"].includes(type)) {
+  if (type !== "info") {
     announceToScreenReader(message, "assertive");
   }
 }
@@ -691,9 +694,12 @@ document.addEventListener("DOMContentLoaded", () => {
     dom.rightPanel?.classList.toggle("collapsed");
   });
 
-  // Handle Window Resize
+  // Debounced resize handler for any future resize logic
+  let resizeTimeout: ReturnType<typeof setTimeout>;
   window.addEventListener("resize", () => {
-    // CanvasRenderer handles its own resize via its render loop/BoundingClientRect
-    // but we can force it if needed.
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      // CanvasRenderer handles its own resize via its render loop
+    }, 150);
   });
 });

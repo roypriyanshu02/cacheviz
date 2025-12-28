@@ -48,6 +48,7 @@ const COLORS_DARK = {
   accent: '#10b981',
   accentGlow: 'rgba(16, 185, 129, 0.3)',
   gridColor: 'rgba(148, 163, 184, 0.05)',
+  shadowColor: 'rgba(0, 0, 0, 0.5)',
 };
 
 const COLORS_LIGHT = {
@@ -71,15 +72,19 @@ const COLORS_LIGHT = {
   accent: '#059669',
   accentGlow: 'rgba(5, 150, 105, 0.2)',
   gridColor: 'rgba(71, 85, 105, 0.08)',
+  shadowColor: 'rgba(0, 0, 0, 0.08)',
 };
 
-// Helper to get current color scheme
-function getColors() {
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-    return COLORS_LIGHT;
-  }
-  return COLORS_DARK;
+// Cached color scheme - updated on media query change
+let cachedColors = COLORS_DARK;
+const colorSchemeQuery = window.matchMedia?.('(prefers-color-scheme: light)');
+if (colorSchemeQuery) {
+  cachedColors = colorSchemeQuery.matches ? COLORS_LIGHT : COLORS_DARK;
+  colorSchemeQuery.addEventListener('change', (e) => {
+    cachedColors = e.matches ? COLORS_LIGHT : COLORS_DARK;
+  });
 }
+const getColors = () => cachedColors;
 
 // Animation state
 interface PulseState {
@@ -155,8 +160,8 @@ export class CanvasRenderer {
   private wirePaths: { [key: string]: { start: { x: number; y: number }; end: { x: number; y: number } } } = {
     'wire-cpu-cache-addr': { start: { x: 220, y: 269 }, end: { x: 320, y: 269 } },
     'wire-cpu-cache-data': { start: { x: 220, y: 297 }, end: { x: 320, y: 297 } },
-    'wire-cache-memory-addr': { start: { x: 600, y: 239 }, end: { x: 680, y: 239 } },
-    'wire-cache-memory-data': { start: { x: 600, y: 292 }, end: { x: 680, y: 292 } },
+    'wire-cache-memory-addr': { start: { x: 600, y: 269 }, end: { x: 680, y: 269 } },
+    'wire-cache-memory-data': { start: { x: 600, y: 297 }, end: { x: 680, y: 297 } },
   };
 
   // Dynamic colors based on system preference
@@ -187,7 +192,13 @@ export class CanvasRenderer {
   }
 
   private setupMouseEvents() {
+    // Throttle mousemove to ~60fps for better performance
+    let lastMouseMove = 0;
     this.canvas.addEventListener('mousemove', (e) => {
+      const now = performance.now();
+      if (now - lastMouseMove < 16) return; // ~60fps throttle
+      lastMouseMove = now;
+
       const rect = this.canvas.getBoundingClientRect();
       const scaleX = this.width / rect.width;
       const scaleY = this.height / rect.height;
@@ -315,10 +326,10 @@ export class CanvasRenderer {
     // Subtle breathing pulse effect when processing
     const pulseIntensity = isProcessing ? 0.3 + Math.sin(time * 3) * 0.15 : 0;
 
-    // CPU Shadow - more subtle when processing
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-    ctx.shadowBlur = 20;
-    ctx.shadowOffsetY = 8;
+    // CPU Shadow - more subtle
+    ctx.shadowColor = this.colors.shadowColor;
+    ctx.shadowBlur = 35;
+    ctx.shadowOffsetY = 15;
 
     // CPU body with gradient
     const cpuGradient = ctx.createLinearGradient(x, y, x, y + height);
@@ -420,9 +431,9 @@ export class CanvasRenderer {
     const { x, y, width, height } = CONFIG.cache;
 
     // Cache Shadow
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-    ctx.shadowBlur = 20;
-    ctx.shadowOffsetY = 10;
+    ctx.shadowColor = this.colors.shadowColor;
+    ctx.shadowBlur = 40;
+    ctx.shadowOffsetY = 20;
 
     // Cache body
     ctx.fillStyle = this.colors.componentColor;
@@ -564,9 +575,9 @@ export class CanvasRenderer {
     const { x, y, width, height } = CONFIG.memory;
 
     // Memory Shadow
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-    ctx.shadowBlur = 20;
-    ctx.shadowOffsetY = 10;
+    ctx.shadowColor = this.colors.shadowColor;
+    ctx.shadowBlur = 40;
+    ctx.shadowOffsetY = 20;
 
     // Memory body (RAM PCB)
     ctx.fillStyle = this.colors.componentColor;
@@ -894,19 +905,24 @@ export class CanvasRenderer {
     };
   }
 
-  // Utility methods
+  // Utility methods - use native roundRect when available for better performance
   private roundRect(x: number, y: number, width: number, height: number, radius: number) {
     const ctx = this.ctx;
     ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + width - radius, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-    ctx.lineTo(x + width, y + height - radius);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-    ctx.lineTo(x + radius, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
+    if (ctx.roundRect) {
+      ctx.roundRect(x, y, width, height, radius);
+    } else {
+      // Fallback for older browsers
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+    }
     ctx.closePath();
   }
 
